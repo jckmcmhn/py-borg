@@ -1,0 +1,36 @@
+#Comment: PC Character
+#Describes The basic stats of this character
+---
+name: Rolf 
+description: It's Rolf! Keep Rolfing Rolfing Rolfing Rolfing
+is_pc: True
+is_ally: True # Unclear when this would come up
+greeting: Rarg, I'm a scary guy, watch out for me!!! OOOOooohhh I'm Rolf, by the way
+hp: 3
+abilities: 
+  strength: -2
+  presence: 1 
+  agility: 1 
+  toughness: 1
+items: 
+  - potion: 
+      heal: 1
+  - weapon: 
+      name: big sword
+      type: melee
+      damage: 1d4
+      dr: 12
+      category: sword
+  - weapon: 
+      name: big sword 2
+      type: melee
+      damage: 1d4
+      dr: 12
+      category: sword
+      primary: True
+morale: 
+  null
+armour:
+  type: leather
+  dice: 1d2
+silver: 1

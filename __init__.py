@@ -5,7 +5,6 @@ import yaml
 MANUAL_DICE_ROLLS = False
 ALLOW_ATTACK_ALLIES = True
 
-
 print("Starting the game")
 print(f"MANUAL_DICE_ROLLS is {MANUAL_DICE_ROLLS}\n\n")
 
