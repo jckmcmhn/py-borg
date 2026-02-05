@@ -23,7 +23,7 @@ items:
       category: sword
 morale: 
   null
-armor:
+armour:
   type: leather
-  stat: -d2
+  dice: 1d2
 silver: 1
