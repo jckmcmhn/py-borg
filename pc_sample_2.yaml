@@ -15,19 +15,18 @@ abilities:
 items: 
   - potion: 
       heal: 1
-  - weapon: 
-      name: big sword
-      type: melee
-      damage: 1d4
-      dr: 12
-      category: sword
-  - weapon: 
-      name: big sword 2
-      type: melee
-      damage: 1d4
-      dr: 12
-      category: sword
-      primary: True
+weapons: 
+  - name: big sword 2
+    type: melee
+    damage: 1d4
+    dr: 12
+    category: sword
+    rank: primary
+  - name: big sword
+    type: melee
+    damage: 1d4
+    dr: 12
+    category: sword
 morale: 
   null
 armour:

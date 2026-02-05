@@ -15,15 +15,15 @@ abilities:
 items: 
   - potion: 
       heal: 1
-  - weapon: 
-      name: big sword
-      type: melee
-      damage: 1d4
-      dr: 12
-      category: sword
+weapons: 
+  - name: big sword
+    type: melee
+    damage: 1d4
+    dr: 12
+    category: sword
 morale: 
   null
 armour:
   type: leather
-  dice: 1d2
+  dice: 1d4
 silver: 1
