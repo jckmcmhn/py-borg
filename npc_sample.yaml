@@ -1,0 +1,22 @@
+#Comment: PC Character
+#Describes The basic stats of this character
+---
+name: The Big Guy 
+description: It's the Big Guy!
+is_pc: False
+is_ally: False # Unclear when this would come up
+pronouns: he/him/his
+greeting: "BANELY: YEEEESSSHHH"
+hp: 9
+size: 3 # Working on this bit
+weapons: 
+  - name: big sword
+    type: melee
+    damage: 1d4
+    category: sword
+morale: 
+  8
+armour:
+  type: leather
+  dice: 1d4
+silver: 1
