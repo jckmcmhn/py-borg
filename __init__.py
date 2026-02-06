@@ -1,14 +1,13 @@
-from random import randint, choice
-import re
-import yaml
-import uuid
-
-
 import argparse
+import re
+import uuid
+import yaml
+
+from random import randint, choice
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--manual", help = "If true, prompt the user to provide every dice roll", nargs='?', const=False)
-# Read arguments from command line
 args = parser.parse_args()
 
 
@@ -146,6 +145,19 @@ class Character:
                     self.set_weapons(False)
                     break
 
+    def random_action(self, actions):
+        return choice(actions)
+    
+    def manual_action(self, actions):
+        print("Here are the available options")
+        for i, action in enumerate(actions):
+            print(f"Option {i}")
+            print(f"Use {action[1].name} on {action[0].name}")
+            print(action[1])
+            print(action[0])
+        decision = int(input("Which option? Just type the number: "))
+        return actions[decision]
+
     def __init__(self, config, name = None):
         if name is not None:
             self.name = name
@@ -165,9 +177,11 @@ class Character:
             self.defence = config["abilities"]["agility"] # This can be modified separate to standard agility tests
             self.items = config["items"]
             self.init_weapons = config["weapons"]
+            self.make_standard_attack = self.pc_make_standard_attack
         else:
             self.morale = config["morale"]
             self.size = config.get("size", 2)
+            self.make_standard_attack = self.npc_make_standard_attack
         pronouns = config.get("pronouns", "they/them/their")
         pronouns_split = pronouns.split("/")
         if len(pronouns_split) != 3:
@@ -182,6 +196,10 @@ class Character:
             self.armour = Armour(config["armour"], self)
         else:
             self.armour = None
+        if MANUAL_DICE_ROLLS is True:
+            self.decision_function = self.manual_action
+        else:
+            self.decision_function = self.random_action
         
 
     def am_i_dead(self):
@@ -233,7 +251,7 @@ class Character:
         defence_roll = roll_dice("1d20")
         fumble = False
         if defence_roll == 20:
-            print("CRITICAL DEFENCE FAIL")
+            print("CRITICAL DEFENCE WIN")
             self.actions_this_turn += 1
         elif defence_roll == 1:
             print("DEFENCE FUMBLE")
@@ -251,7 +269,7 @@ class Character:
         print(f"{self.name} attacks {target.name} with {weapon.name}")
         dr = weapon.dr
         multiplier = 1
-        critical = True
+        critical = False
         attack_role = roll_dice("1d20")
         if attack_role == 20:
             critical = True
@@ -295,13 +313,16 @@ class Character:
         print(action_tuples)
         return action_tuples
     
-    def start_turn(self):
+    def start_turn(self, others):
         print(f"{self.name} is starting {self.possessive} turn")
         if self.am_i_dead():
             print(f"{self.name} is supposed to be dead. Something has gone wrong here")
+            return "Finished"
         self.actions_this_turn += 1
-        for _ in self.actions_this_turn:
-            actions = get_available_actions(others)
+        for _ in range(0, self.actions_this_turn):
+            actions = self.get_available_actions(others)
+            action = self.decision_function(actions)
+            self.make_standard_attack(action[0], action[1])
         # TODO: Check for status effects
         # TODO: Check if dead after status effects
         # Get actions
@@ -310,6 +331,9 @@ class Character:
         # Log results of action
         # Check if dead before ending turn
 
+    def __str__(self):
+        return f"A character called {self.name}. {self.description}"
+
 
 
 with open("pc_sample.yaml", "r") as f:
@@ -317,17 +341,12 @@ with open("pc_sample.yaml", "r") as f:
 
 urvarg = Character(config)
 #urvarg2 = Character(config, "Urvarg2")
-#urvarg3 = Character(config, "Urvarg3")
 
 with open("pc_sample_2.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 rolf = Character(config)
 #rolf2 = Character(config, "Rolf2")
 
-#rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
-#rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
-#rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
-#rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
 #rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
 
 #while (urvarg.alive) and (rolf.alive):
@@ -340,11 +359,10 @@ with open("npc_sample.yaml", "r") as f:
 
 big_guy = Character(config)
 
-#actions = rolf.get_available_actions([urvarg])
-#print(actions)
-#rolf.pc_make_standard_attack(actions[0][0], actions[0][1])
+actions = rolf.get_available_actions([urvarg])
+rolf.pc_make_standard_attack(actions[0][0], actions[0][1])
 
-#rolf.start_turn()
+rolf.start_turn([urvarg, big_guy])
 
 #urvarg.pc_make_standard_attack(big_guy, urvarg.primary_weapon)
 
