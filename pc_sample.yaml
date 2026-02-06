@@ -5,6 +5,7 @@ name: Urvarg
 description: It's Urvarg, baby!
 is_pc: True
 is_ally: True # Unclear when this would come up
+pronouns: he/him/his
 greeting: Rarg, I'm a scary guy, watch out for me!!! OOOOooohhh
 hp: 5 # originally 26, bit high
 abilities: 
@@ -16,7 +17,7 @@ items:
   - potion: 
       heal: 1
 weapons: 
-  - name: big sword
+  - name: big sword 4
     type: melee
     damage: 1d4
     dr: 12

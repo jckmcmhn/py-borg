@@ -27,6 +27,11 @@ weapons:
     damage: 1d4
     dr: 12
     category: sword
+  - name: big sword 3
+    type: melee
+    damage: 1d4
+    dr: 12
+    category: sword
 morale: 
   null
 armour:
