@@ -4,7 +4,17 @@ import yaml
 import uuid
 
 
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-m", "--manual", help = "If true, prompt the user to provide every dice roll", nargs='?', const=False)
+# Read arguments from command line
+args = parser.parse_args()
+
+
 MANUAL_DICE_ROLLS = False
+if args.manual:
+    MANUAL_DICE_ROLLS = True
 ALLOW_ATTACK_ALLIES = True
 
 print("Starting the game")
@@ -15,17 +25,19 @@ def roll_dice(nd):
     result = 0
     if nd.startswith("d"):
         nd = "1" + nd
+    if bool(re.search("^[0-9]*d[0-9]*$", nd)):
+        split_nd = nd.split("d")
+        n = int(split_nd[0])
+        d = int(split_nd[1])
+    else:
+        raise ValueError("Invalid roll description")
     if MANUAL_DICE_ROLLS:
         result = int(input(f"Roll {nd} and type in the result. Press 0 to let the computer do it: "))
+        if result > n * d:
+            result = int(input(f"That result {result} is more than is possible with {nd}. If you're doing this on purpose as a test, enter the same thing now: "))
+
     if result == 0: # If manual dice rolls is false or the input from the user was 0
         nd = nd.lower()
-        if bool(re.search("^[0-9]*d[0-9]*$", nd)):
-            split_nd = nd.split("d")
-            n = int(split_nd[0])
-            d = int(split_nd[1])
-        else:
-            raise ValueError("Invalid roll description")
-        result = 0
         for _ in range(0,n):
             roll = randint(1,d)
             result += roll
@@ -147,6 +159,7 @@ class Character:
         self.current_hp = config["hp"]
         self.alive = True
         self.is_pc = config["is_pc"]
+        self.actions_this_turn = 0 #TODO: RAW are a bit vague on if there is a difference between attacks and actions (which could be using an item), but for now I'm treating them as the same
         if self.is_pc:
             self.abilities = config["abilities"]
             self.defence = config["abilities"]["agility"] # This can be modified separate to standard agility tests
@@ -195,12 +208,14 @@ class Character:
 
     def take_standard_damage(self,damage):
         if self.armour is not None:
+            print("Rolling for armour")
             armour_reduction = roll_dice(self.armour.dice)
-            print(f"reducing damage by {armour_reduction} due to armour")
+            print(f"{self.name} has {self.current_hp} HP now.")
+            print(f"Reducing damage by {armour_reduction} due to armour")
             damage -= armour_reduction
         if damage > 0:
-            print(f"{self.name} took {damage} damage")
-            self.current_hp -= self.current_hp
+            self.current_hp -= damage
+            print(f"{self.name} took {damage} damage and is {self.current_hp} HP now")
             if self.current_hp == 0:
                 print("Bad times for you friend")
                 self.roll_broken()
@@ -216,14 +231,21 @@ class Character:
 
     def make_defence_roll(self, attacker):
         defence_roll = roll_dice("1d20")
+        fumble = False
+        if defence_roll == 20:
+            print("CRITICAL DEFENCE FAIL")
+            self.actions_this_turn += 1
+        elif defence_roll == 1:
+            print("DEFENCE FUMBLE")
+            fumble = True
         defence_roll += self.defence
         dr = 12
         if defence_roll >= dr:
             print(f"{self.name} dodged the attack from {attacker.name}")
-            return True
+            return True, fumble
         else:
             print(f"{self.name} did not dodge the attack from {attacker.name}")
-            return False
+            return False, fumble
 
     def pc_make_standard_attack(self, target, weapon):
         print(f"{self.name} attacks {target.name} with {weapon.name}")
@@ -244,7 +266,7 @@ class Character:
             if weapon.type == "ranged":
                 attack_role += self.abilities["presence"]
             if attack_role >= dr:
-                print(f"{self.name} hits!")
+                print(f"{self.name} hits! Rolling for damage")
                 damage = roll_dice(weapon.damage)
                 target_alive = target.take_standard_damage(multiplier * damage)
                 if target_alive and critical and target.armour is not None:
@@ -254,11 +276,17 @@ class Character:
 
     def npc_make_standard_attack(self, target, weapon):
         print(f"{self.name} attacks {target.name} with {weapon.name}")
-        missed = target.make_defence_roll(self)
+        multiplier = 1
+        missed, fumble = target.make_defence_roll(self)
+        if fumble:
+            multiplier = 2
         if missed is not True:
-            print("HIT")
-            damage = roll_dice(weapon.damage)
+            print("HIT. Rolling for damage")
+            damage = multiplier * roll_dice(weapon.damage)
             target_alive = target.take_standard_damage(damage)
+            if fumble and target_alive is True:
+                print(f"{target.name} armour being reduced")
+                target.armour.reduce_tier(target, 1)
 
     def get_available_actions(self, others):
         action_tuples = []
@@ -271,6 +299,9 @@ class Character:
         print(f"{self.name} is starting {self.possessive} turn")
         if self.am_i_dead():
             print(f"{self.name} is supposed to be dead. Something has gone wrong here")
+        self.actions_this_turn += 1
+        for _ in self.actions_this_turn:
+            actions = get_available_actions(others)
         # TODO: Check for status effects
         # TODO: Check if dead after status effects
         # Get actions
@@ -299,10 +330,10 @@ rolf = Character(config)
 #rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
 #rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
 
-while (urvarg.alive) and (rolf.alive):
-    urvarg.pc_make_standard_attack(rolf, urvarg.primary_weapon)
-    if rolf.alive:
-        rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
+#while (urvarg.alive) and (rolf.alive):
+#    urvarg.pc_make_standard_attack(rolf, urvarg.primary_weapon)
+#    if rolf.alive:
+#        rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
 
 with open("npc_sample.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
