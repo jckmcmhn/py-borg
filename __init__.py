@@ -336,25 +336,23 @@ class Character:
 
 
 
-with open("pc_sample.yaml", "r") as f:
+with open("configs/pc_sample.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 
 urvarg = Character(config)
 #urvarg2 = Character(config, "Urvarg2")
 
-with open("pc_sample_2.yaml", "r") as f:
+with open("configs/pc_sample_2.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 rolf = Character(config)
 #rolf2 = Character(config, "Rolf2")
-
-#rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
 
 #while (urvarg.alive) and (rolf.alive):
 #    urvarg.pc_make_standard_attack(rolf, urvarg.primary_weapon)
 #    if rolf.alive:
 #        rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
 
-with open("npc_sample.yaml", "r") as f:
+with open("configs/npc_sample.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 
 big_guy = Character(config)
@@ -364,7 +362,5 @@ rolf.pc_make_standard_attack(actions[0][0], actions[0][1])
 
 rolf.start_turn([urvarg, big_guy])
 
-#urvarg.pc_make_standard_attack(big_guy, urvarg.primary_weapon)
-
-big_guy.npc_make_standard_attack(urvarg, big_guy.primary_weapon)
-rolf.pc_make_standard_attack(big_guy, rolf.primary_weapon)
+big_guy.make_standard_attack(urvarg, big_guy.primary_weapon)
+rolf.make_standard_attack(big_guy, rolf.primary_weapon)
