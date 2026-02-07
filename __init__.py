@@ -5,7 +5,7 @@ import uuid
 import yaml
 
 from random import randint, choice, shuffle
-
+from itertools import combinations_with_replacement
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--manual", help = "If true, prompt the user to provide every dice roll", nargs='?', const=False)
@@ -64,12 +64,28 @@ class Weapon:
         self.category = config.get("category","unarmed")
         self.rank = config.get("rank",False)
         self.id = uuid.uuid4()        
-        
-
 
     def __str__(self):
         return "It's a %s called %s it deals %s" % (self.category, self.name, self.damage)
-    
+
+class Scroll:
+    def list_actions(self,others):
+        if self.scroll_code == 1: # Fireball
+            #TODO: Need to filter based on ALLOW_ATTACK_ALLIES
+            target_combinations = list(combinations_with_replacement(others,2))
+            action_tuples = [ (tc, self) for tc in target_combinations]
+            return action_tuples
+
+
+    def __init__(self, name, flavour):
+        self.name = name
+        self.flavour = flavour
+        self.id = uuid.uuid4()
+        if name.lower().replace(" ","").replace("_","") == "fireball":
+            self.type = "offensive"
+            self.scroll_code = 1
+
+
 class Armour:
     def __init__(self, config, self_character):
         self.type = config["type"]
@@ -168,6 +184,15 @@ class Character:
             print(f"Use {action[1].name} on {action[0].name}")
         decision = int(input("\nWhich option? Just type the number: "))
         return actions[decision]
+    
+    def set_scrolls(self, items):
+        scrolls = []
+        for item in items:
+            print(item)
+            if item["type"] == "scroll":
+                scrolls.append(Scroll(item["name"], item["flavour_name"]))
+        self.scrolls = scrolls
+                
 
     def __init__(self, config, name = None):
         if name is not None:
@@ -189,6 +214,7 @@ class Character:
             self.items = config["items"]
             self.init_weapons = config["weapons"]
             self.make_standard_attack = self.pc_make_standard_attack
+            self.set_scrolls(self.items) #TODO: It would be nice to be able to add new scrolls
         else:
             self.morale = config["morale"]
             self.size = config.get("size", 2)
@@ -211,7 +237,6 @@ class Character:
             self.decision_function = self.manual_action
         else:
             self.decision_function = self.random_action
-        
 
     def am_i_dead(self):
         # Well?
@@ -338,6 +363,11 @@ class Character:
         action_tuples = []
         for other in others:
             action_tuples += [ (other, weapon) for weapon in [self.primary_weapon, self.secondary_weapon] ]
+        if self.scrolls is not None:
+            for scroll in self.scrolls:
+                scroll_actions = scroll.list_actions(others)
+                logging.debug(scroll_actions)
+
         return action_tuples
     
     def start_turn(self, others):
@@ -480,6 +510,10 @@ with open("configs/pc_sample_2.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 rolf = Character(config)
 
+with open("configs/pc_sample_scroll.yaml", "r") as f:
+    config = yaml.load(f, Loader=yaml.SafeLoader)
+urm = Character(config)
+
 with open("configs/npc_sample.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 big_guy = Character(config)
@@ -489,6 +523,7 @@ with open("configs/npc_sample_2.yaml", "r") as f:
 little_guy = Character(config)
 little_guy_2 = Character(config, "The Other Little Guy")
 
+urm.get_available_actions([big_guy])
 
-battle = Battle([rolf, urvarg],[big_guy, little_guy, little_guy_2])
-battle.run_battle()
+#battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2])
+#battle.run_battle()
