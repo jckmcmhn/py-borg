@@ -9,7 +9,7 @@ pronouns: he/him/his
 greeting: Rarg, I'm a scary guy, watch out for me!!! OOOOooohhh
 hp: 5 # originally 26, bit high
 abilities: 
-  strength: -2
+  strength: 2
   presence: 1 
   agility: 1 
   toughness: 1

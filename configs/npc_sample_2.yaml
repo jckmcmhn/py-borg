@@ -1,0 +1,22 @@
+#Comment: PC Character
+#Describes The basic stats of this character
+---
+name: The Little Guy 
+description: It's the Little Guy!
+is_pc: False
+is_ally: False # Unclear when this would come up
+pronouns: he/him/his
+greeting: "Sure thing boss!"
+hp: 3
+size: 1 # Working on this bit
+weapons: 
+  - name: little sword
+    type: melee
+    damage: 1d2
+    category: sword
+morale: 
+  3
+armour:
+  type: flimsy jacket
+  dice: 0d2
+silver: 1

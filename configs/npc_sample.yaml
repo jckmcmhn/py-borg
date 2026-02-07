@@ -10,10 +10,10 @@ greeting: "BANELY: YEEEESSSHHH"
 hp: 7
 size: 3 # Working on this bit
 weapons: 
-  - name: big sword
+  - name: big fists
     type: melee
-    damage: 1d4
-    category: sword
+    damage: 1d6
+    category: unarmed
 morale: 
   8
 armour:
