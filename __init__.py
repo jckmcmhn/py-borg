@@ -1,16 +1,28 @@
-from random import randint, choice
-import re
-import yaml
-import uuid
-
-
 import argparse
+import logging
+import re
+import uuid
+import yaml
+
+from random import randint, choice, shuffle
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--manual", help = "If true, prompt the user to provide every dice roll", nargs='?', const=False)
-# Read arguments from command line
+parser.add_argument("-l", "--log", help = "Log level", nargs='?', const="info")
 args = parser.parse_args()
-
+if args.log == "info":
+    logging.basicConfig(
+        format="{asctime} - {levelname} - {message}",
+        style="{",
+        datefmt="%Y-%m-%d %H:%M",
+        level=logging.INFO)
+elif args.log == "debug":
+    logging.basicConfig(
+        format="{asctime} - {levelname} - {message}",
+        style="{",
+        datefmt="%Y-%m-%d %H:%M",
+        level=logging.DEBUG)
 
 MANUAL_DICE_ROLLS = False
 if args.manual:
@@ -97,7 +109,7 @@ class Armour:
 
 class Character:
     def greet(self, greeting):
-        print(greeting)
+        print('"' + greeting + '"')
 
     def set_weapons(self, is_init = False):
         print(f"Setting weapons for {self.name}")
@@ -135,9 +147,9 @@ class Character:
         self.weapons = weapons
 
     def destroy_weapon(self, weapon):
-        print(f"{self.name}'s weapon {weapon.name} is being destroyed")
+        logging.debug(f"{self.name}'s weapon {weapon.name} is being destroyed")
         if weapon.category == "unarmed":
-            print("Cannot destroy an unarmed weapon")
+            logging.debug("Cannot destroy an unarmed weapon")
         else:
             for weapon_object in self.weapons:
                 if weapon_object.id == weapon.id:
@@ -145,6 +157,17 @@ class Character:
                     print(f"{self.name}'s weapon {weapon.name} has been destroyed")
                     self.set_weapons(False)
                     break
+
+    def random_action(self, actions):
+        return choice(actions)
+    
+    def manual_action(self, actions):
+        print("\n\nHere are the available options\n")
+        for i, action in enumerate(actions):
+            print(f"Option {i}: ")
+            print(f"Use {action[1].name} on {action[0].name}")
+        decision = int(input("\nWhich option? Just type the number: "))
+        return actions[decision]
 
     def __init__(self, config, name = None):
         if name is not None:
@@ -165,9 +188,11 @@ class Character:
             self.defence = config["abilities"]["agility"] # This can be modified separate to standard agility tests
             self.items = config["items"]
             self.init_weapons = config["weapons"]
+            self.make_standard_attack = self.pc_make_standard_attack
         else:
             self.morale = config["morale"]
             self.size = config.get("size", 2)
+            self.make_standard_attack = self.npc_make_standard_attack
         pronouns = config.get("pronouns", "they/them/their")
         pronouns_split = pronouns.split("/")
         if len(pronouns_split) != 3:
@@ -182,6 +207,10 @@ class Character:
             self.armour = Armour(config["armour"], self)
         else:
             self.armour = None
+        if MANUAL_DICE_ROLLS is True:
+            self.decision_function = self.manual_action
+        else:
+            self.decision_function = self.random_action
         
 
     def am_i_dead(self):
@@ -200,7 +229,7 @@ class Character:
     
    
     def roll_broken(self):
-        print("Death roll") # Not crazy about this whole "broken" concept
+        logging.debug("Death roll") # Not crazy about this whole "broken" concept
         broken_roll = roll_dice("1d4")
         if broken_roll == 4:
             print(f"{self.name} is DEAD")
@@ -208,16 +237,15 @@ class Character:
 
     def take_standard_damage(self,damage):
         if self.armour is not None:
-            print("Rolling for armour")
+            logging.debug("Rolling for armour")
             armour_reduction = roll_dice(self.armour.dice)
-            print(f"{self.name} has {self.current_hp} HP now.")
+            logging.debug(f"{self.name} has {self.current_hp} HP before taking damage.")
             print(f"Reducing damage by {armour_reduction} due to armour")
             damage -= armour_reduction
         if damage > 0:
             self.current_hp -= damage
             print(f"{self.name} took {damage} damage and is {self.current_hp} HP now")
             if self.current_hp == 0:
-                print("Bad times for you friend")
                 self.roll_broken()
             elif self.current_hp < 0:
                 print(f"{self.name} is DEAD")
@@ -233,75 +261,107 @@ class Character:
         defence_roll = roll_dice("1d20")
         fumble = False
         if defence_roll == 20:
-            print("CRITICAL DEFENCE FAIL")
+            print("CRITICAL DEFENCE WIN")
             self.actions_this_turn += 1
         elif defence_roll == 1:
             print("DEFENCE FUMBLE")
             fumble = True
         defence_roll += self.defence
         dr = 12
+        logging.debug(f"DR is {dr}, roll result is {defence_roll}")
         if defence_roll >= dr:
-            print(f"{self.name} dodged the attack from {attacker.name}")
+            logging.debug(f"{self.name} dodged the attack from {attacker.name}")
             return True, fumble
         else:
-            print(f"{self.name} did not dodge the attack from {attacker.name}")
+            logging.debug(f"{self.name} did not dodge the attack from {attacker.name}")
             return False, fumble
 
     def pc_make_standard_attack(self, target, weapon):
-        print(f"{self.name} attacks {target.name} with {weapon.name}")
+        print(f"{self.name} (PC) attacks {target.name} with {weapon.name}")
         dr = weapon.dr
         multiplier = 1
-        critical = True
-        attack_role = roll_dice("1d20")
-        if attack_role == 20:
+        critical = False
+        attack_roll = roll_dice("1d20")
+        if attack_roll == 20:
             critical = True
             print("CRITICAL")
             multiplier = 2
-        if attack_role == 1:
+        if attack_roll == 1:
             self.destroy_weapon(weapon)
         # fumble rolls go here
         else:
             if weapon.type == "melee":
-                attack_role += self.abilities["strength"]
-            if weapon.type == "ranged":
-                attack_role += self.abilities["presence"]
-            if attack_role >= dr:
-                print(f"{self.name} hits! Rolling for damage")
+                attack_roll += self.abilities["strength"]
+            elif weapon.type == "ranged":
+                attack_roll += self.abilities["presence"]
+            logging.debug(f"DR is {dr}, roll result is {attack_roll}, critical is {critical}")
+            if critical or attack_roll >= dr: # Presumably Crits always hit?
+                print(f"{self.name} hits! Rolling for damage.")
                 damage = roll_dice(weapon.damage)
+                logging.debug(f"Damage roll is {damage}, multiplier is {multiplier}")
                 target_alive = target.take_standard_damage(multiplier * damage)
                 if target_alive and critical and target.armour is not None:
                     target.armour.reduce_tier(target,1)
             else:
                 print(f"{self.name} misses")
+            if MANUAL_DICE_ROLLS:
+                input("--Continue--")
+
 
     def npc_make_standard_attack(self, target, weapon):
-        print(f"{self.name} attacks {target.name} with {weapon.name}")
+        print(f"{self.name} (NPC) attacks {target.name} with {weapon.name}")
         multiplier = 1
         missed, fumble = target.make_defence_roll(self)
         if fumble:
             multiplier = 2
-        if missed is not True:
-            print("HIT. Rolling for damage")
-            damage = multiplier * roll_dice(weapon.damage)
-            target_alive = target.take_standard_damage(damage)
+        if missed:
+            print(f"{self.name} misses.")
+        else:
+            print(f"{self.name} hits! Rolling for damage.")
+            damage = roll_dice(weapon.damage)
+            logging.debug(f"Damage roll is {damage}, multiplier is {multiplier}")
+            target_alive = target.take_standard_damage(multiplier * damage)
             if fumble and target_alive is True:
-                print(f"{target.name} armour being reduced")
+                print(f"{target.name}'s armour is damaged")
                 target.armour.reduce_tier(target, 1)
 
+    def npc_make_standard_attack_on_npc(self, target, weapon):
+        # To handle this edge-case, assume any npc on npc attack hit automatically
+        # TODO: Give NPCs placeholder defence stats to handle this better
+        print(f"{self.name} (NPC) attacks {target.name} with {weapon.name}")
+        multiplier = 1
+        damage = multiplier * roll_dice(weapon.damage)
+        target.take_standard_damage(damage)
+
     def get_available_actions(self, others):
+        #TODO: Need to filter based on ALLOW_ATTACK_ALLIES
         action_tuples = []
         for other in others:
             action_tuples += [ (other, weapon) for weapon in [self.primary_weapon, self.secondary_weapon] ]
-        print(action_tuples)
         return action_tuples
     
-    def start_turn(self):
+    def start_turn(self, others):
+        print("------------------------------")
         print(f"{self.name} is starting {self.possessive} turn")
         if self.am_i_dead():
-            print(f"{self.name} is supposed to be dead. Something has gone wrong here")
+            logging.warning(f"{self.name} is supposed to be dead. Something has gone wrong here")
+            print("------------------------------")
+            return None
         self.actions_this_turn += 1
-        for _ in self.actions_this_turn:
-            actions = get_available_actions(others)
+        for _ in range(0, self.actions_this_turn):
+            actions = self.get_available_actions(others)
+            action = self.decision_function(actions)
+            if action[0].is_pc and self.is_pc: # this might be the usecase for is_ally?
+                logging.warning(f"{self.name} is attacking their ally {action[0].name}")
+                self.make_standard_attack(action[0], action[1])
+            elif (not action[0].is_pc) and (not self.is_pc):
+                logging.warning(f"{self.name} is attacking their ally {action[0].name}")
+                self.npc_make_standard_attack_on_npc(action[0], action[1])
+            else:
+                self.make_standard_attack(action[0], action[1])
+            self.last_target = action[0]
+            print("------------------------------")
+            return action[0]
         # TODO: Check for status effects
         # TODO: Check if dead after status effects
         # Get actions
@@ -310,43 +370,125 @@ class Character:
         # Log results of action
         # Check if dead before ending turn
 
+    def __str__(self):
+        return f"A character called {self.name}. {self.description}"
+    
+
+def poll_team(team):
+    team_left = False
+    for char in team.chars:
+        if char.alive:
+            team_left = True
+            print(f"There's someone {char.name} left on {team.name}")
+            break
+    return team_left
+
+class Team:
+    def __init__(self, characters, name):
+        self.chars_starting = characters
+        self.chars = characters
+        self.name = name
+
+    def update_team(self):
+        self.chars = [char for char in self.chars if char.alive]
+        return len(self.chars)
 
 
-with open("pc_sample.yaml", "r") as f:
+
+class Battle: # Is this one class too many? Probably, but I've got class fever over here
+    def initiative(self):
+        print("Roll for initiative")
+        initiative_roll = roll_dice("1d6")
+        print(f"Initiative roll is {initiative_roll}")
+        if initiative_roll <= 3:
+            return False # PCs not going first
+        else:
+            return True # PCs going first
+        # TODO: Individual initiative may not be RAW
+
+    
+    def __init__(self, pcs, npcs):
+        shuffle(pcs)
+        shuffle(npcs)
+        self.pcs = pcs
+        self.npcs = npcs
+        self.participants_starting = pcs + npcs
+        self.participants = pcs + npcs
+        self.round = 1
+
+        pcs_going_first = self.initiative()
+        if pcs_going_first:
+            self.first_team = Team(pcs,"Team 1")
+            self.second_team = Team(npcs,"Team 2")
+        else:
+            self.first_team = Team(npcs,"Team 1")
+            self.second_team = Team(pcs,"Team 2")
+
+        self.battle_over = False
+
+
+    def run_battle(self):
+        rounds = 0
+        team_turns_taken = 0
+        individual_turns_taken = 0
+        while self.battle_over is False:
+
+            #TODO: This whole team term block could be a function
+            for char in self.first_team.chars:
+                others = [x for x in self.participants if x != char and x.alive is True]
+                if char.alive:
+                    target = char.start_turn(others)
+                    individual_turns_taken += 1
+                    if target is not None:
+                        self.first_team.last_target = target
+            team_turns_taken += 1
+            if 0 == self.first_team.update_team():
+                self.battle_over = True
+                print(f"Second team ({self.second_team.name}) won. Congrats to the survivor(s): {','.join([char.name for char in self.second_team.chars])}")
+                break
+            if 0 == self.second_team.update_team():
+                self.battle_over = True
+                print(f"First team ({self.first_team.name}) won. Congrats to the survivor(s): {', '.join([char.name for char in self.first_team.chars])}")
+                break
+            
+            for char in self.second_team.chars:
+                others = [x for x in self.participants if x != char and x.alive is True]
+                if char.alive:
+                    char.start_turn(others)
+                    individual_turns_taken += 1
+            team_turns_taken += 1
+            if 0 == self.second_team.update_team():
+                self.battle_over = True
+                print(f"First team ({self.first_team.name}) won. Congrats to the survivors(s): {','.join([char.name for char in self.first_team.chars])}")
+                break
+            if 0 == self.first_team.update_team():
+                self.battle_over = True
+                print(f"Second team ({self.second_team.name}) won. Congrats to the survivors(s): {','.join([char.name for char in self.second_team.chars])}")
+                break
+            rounds += 1
+        print(self.first_team.chars)
+        print(self.second_team.chars)
+        print(f"There were {rounds} rounds and {individual_turns_taken} individual turns")
+
+
+
+with open("configs/pc_sample.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
-
 urvarg = Character(config)
-#urvarg2 = Character(config, "Urvarg2")
-#urvarg3 = Character(config, "Urvarg3")
 
-with open("pc_sample_2.yaml", "r") as f:
+with open("configs/pc_sample_2.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 rolf = Character(config)
-#rolf2 = Character(config, "Rolf2")
 
-#rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
-#rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
-#rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
-#rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
-#rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
-
-#while (urvarg.alive) and (rolf.alive):
-#    urvarg.pc_make_standard_attack(rolf, urvarg.primary_weapon)
-#    if rolf.alive:
-#        rolf.pc_make_standard_attack(urvarg, rolf.primary_weapon)
-
-with open("npc_sample.yaml", "r") as f:
+with open("configs/npc_sample.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
-
 big_guy = Character(config)
 
-#actions = rolf.get_available_actions([urvarg])
-#print(actions)
-#rolf.pc_make_standard_attack(actions[0][0], actions[0][1])
+with open("configs/npc_sample_2.yaml", "r") as f:
+    config = yaml.load(f, Loader=yaml.SafeLoader)
+little_guy = Character(config)
+little_guy_2 = Character(config, "The Other Little Guy")
 
-#rolf.start_turn()
 
-#urvarg.pc_make_standard_attack(big_guy, urvarg.primary_weapon)
-
-big_guy.npc_make_standard_attack(urvarg, big_guy.primary_weapon)
-rolf.pc_make_standard_attack(big_guy, rolf.primary_weapon)
+battle = Battle([rolf, urvarg],[big_guy, little_guy, little_guy_2])
+battle.run_battle()

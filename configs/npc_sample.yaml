@@ -7,16 +7,16 @@ is_pc: False
 is_ally: False # Unclear when this would come up
 pronouns: he/him/his
 greeting: "BANELY: YEEEESSSHHH"
-hp: 9
+hp: 7
 size: 3 # Working on this bit
 weapons: 
-  - name: big sword
+  - name: big fists
     type: melee
-    damage: 1d4
-    category: sword
+    damage: 1d6
+    category: unarmed
 morale: 
   8
 armour:
   type: leather
-  dice: 1d4
+  dice: 1d2
 silver: 1
