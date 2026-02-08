@@ -19,7 +19,7 @@ items:
 weapons: 
   - name: big sword 4
     type: melee
-    damage: 1d4
+    dice: 1d4
     dr: 12
     category: sword
 morale: 

@@ -104,12 +104,49 @@ class Character:
     
     def set_scrolls(self, items):
         scrolls = []
+        scroll_codes = []
         for item in items:
             if item["type"] == "scroll":
-                scrolls.append(Scroll(item["name"], item["flavour_name"]))
+                scroll = Scroll(item["name"], item["flavour_name"])
+                scrolls.append(scroll)
+                scroll_codes.append(scroll.scroll_code)
         print("Here are the scrolls" + ", ".join([scroll.name for scroll in scrolls]))
         self.scrolls = scrolls
+        self.scroll_codes = scroll_codes
                 
+
+    def get_obs(self, audience):
+        if self.alive is False:
+            return {}
+        if self.is_pc: 
+            obs = {
+                "p_weapon_dice": self.primary_weapon.dice, # an observant human GM would know this #TODO: Though maybe not on round 1
+                "s_weapon_dice": self.secondary_weapon.dice, # an observant human GM would know this #TODO: Though maybe not on round 1
+                "scroll_codes": self.scroll_codes, # TODO: I would like to eventually make this "scrolls that audience has seen" but for now...
+                "armour_dice": self.armour.dice, # an observant human GM would know this #TODO: Though maybe not on round 1
+                "dizzy": self.dizzy,
+                "extra_actions_this_turn": self.actions_this_turn
+            }
+            if audience == "friends": # for now, let's say all PCs have thorough knowledge of their team mates states
+                obs["max_hp"] = self.max_hp
+                obs["current_hp"] = self.current_hp
+                obs["strength"] = self.abilities["strength"]
+                obs["presence"] = self.abilities["presence"]
+                obs["agility"] = self.abilities["agility"]
+                obs["toughness"] = self.abilities["toughness"]
+                obs["defence"] = self.defence
+                obs["powers"] = self.powers
+                obs["number_items"] = self.items #TODO: This should ideally be # of useful items, or # of items by category
+
+        elif not self.is_pc:
+            obs = {
+                "p_weapon_dice": self.primary_weapon.dice, # an observant human player would know this
+                "s_weapon_dice": self.secondary_weapon.dice, # an observant human player would know this
+                "size": self.size,
+                "morale": self.morale, #TODO: PCs shouldn't know this pre-morale roll
+            }
+        return obs
+
 
     def __init__(self, config, name = None):
         if name is not None:
@@ -277,7 +314,7 @@ class Character:
             logging.debug(f"DR is {dr}, roll result is {attack_roll}, critical is {critical}")
             if critical or attack_roll >= dr: # Presumably Crits always hit?
                 print(f"{self.name} hits! Rolling for damage.")
-                damage = roll_dice(weapon.damage, MANUAL_DICE_ROLLS)
+                damage = roll_dice(weapon.dice, MANUAL_DICE_ROLLS)
                 logging.debug(f"Damage roll is {damage}, multiplier is {multiplier}")
                 target_alive = target.take_standard_damage(multiplier * damage)
                 if target_alive and critical and target.armour is not None:
@@ -298,7 +335,7 @@ class Character:
             print(f"{self.name} misses.")
         else:
             print(f"{self.name} hits! Rolling for damage.")
-            damage = roll_dice(weapon.damage, MANUAL_DICE_ROLLS)
+            damage = roll_dice(weapon.dice, MANUAL_DICE_ROLLS)
             logging.debug(f"Damage roll is {damage}, multiplier is {multiplier}")
             target_alive = target.take_standard_damage(multiplier * damage)
             if fumble and target_alive is True:
@@ -310,7 +347,7 @@ class Character:
         # TODO: Give NPCs placeholder defence stats to handle this better
         print(f"{self.name} (NPC) attacks {target.name} with {weapon.name}")
         multiplier = 1
-        damage = multiplier * roll_dice(weapon.damage, MANUAL_DICE_ROLLS)
+        damage = multiplier * roll_dice(weapon.dice, MANUAL_DICE_ROLLS)
         target.take_standard_damage(damage)
 
     def get_available_actions(self, others):
@@ -323,7 +360,7 @@ class Character:
             if self.powers > 1 and (self.scrolls is not None):
                 for scroll in self.scrolls:
                     scroll_actions = scroll.list_actions(others)
-                    logging.debug(scroll_actions)
+                    #logging.debug(scroll_actions)
         return scroll_actions + weapon_actions
     
     def start_turn(self, others):
@@ -401,5 +438,6 @@ little_guy_3 = Character(config, "YALG")
 little_guy_4 = Character(config, "YALG2")
 
 
-battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2, little_guy_3, little_guy_4], big_guy, MANUAL_DICE_ROLLS)
+#battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2, little_guy_3, little_guy_4], big_guy, MANUAL_DICE_ROLLS)
+battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2, little_guy_3,], big_guy, MANUAL_DICE_ROLLS)
 battle.run_battle()

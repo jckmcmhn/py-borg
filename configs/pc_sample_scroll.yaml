@@ -25,7 +25,7 @@ items:
 weapons: 
   - name: knife
     type: melee
-    damage: 1d4
+    dice: 1d4
     dr: 12
     category: knife
 morale: 
