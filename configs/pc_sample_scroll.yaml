@@ -1,0 +1,36 @@
+#Comment: PC Character
+#Describes The basic stats of this character
+---
+name: Urm
+description: Oh no, it's Urm
+is_pc: True
+is_ally: True # Unclear when this would come up
+pronouns: he/him/his
+greeting: Awh jeez, what the heck
+hp: 3
+abilities: 
+  strength: 0
+  presence: 4 
+  agility: 0 
+  toughness: 0
+items: 
+  - type: potion
+    heal: 1
+  - type: scroll
+    name: fire ball
+    flavour_name: Palms open the southern gate # d2 creatures dealing d8 damage per creature.
+  - type: scroll
+    name: lightning bolt
+    flavour_name: Nine violet signs unknot the storm
+weapons: 
+  - name: knife
+    type: melee
+    damage: 1d4
+    dr: 12
+    category: knife
+morale: 
+  null
+armour:
+  type: leather
+  dice: 1d4
+silver: 1

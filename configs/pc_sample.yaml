@@ -14,8 +14,8 @@ abilities:
   agility: 1 
   toughness: 1
 items: 
-  - potion: 
-      heal: 1
+  - type: potion
+    heal: 1
 weapons: 
   - name: big sword 4
     type: melee

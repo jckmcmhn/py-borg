@@ -1,11 +1,8 @@
 import argparse
 import logging
-import re
-import uuid
 import yaml
 
-from random import randint, choice, shuffle
-
+from random import choice
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--manual", help = "If true, prompt the user to provide every dice roll", nargs='?', const=False)
@@ -29,83 +26,16 @@ if args.manual:
     MANUAL_DICE_ROLLS = True
 ALLOW_ATTACK_ALLIES = True
 
+
+from classes import roll_dice
+from classes.battle import Battle
+from classes.armour import Armour
+from classes.weapon import Weapon
+from classes.scroll import Scroll
+
 print("Starting the game")
 print(f"MANUAL_DICE_ROLLS is {MANUAL_DICE_ROLLS}\n\n")
 print("Enter 0 to skip manual dice rolls if needed")
-
-def roll_dice(nd):
-    result = 0
-    if nd.startswith("d"):
-        nd = "1" + nd
-    if bool(re.search("^[0-9]*d[0-9]*$", nd)):
-        split_nd = nd.split("d")
-        n = int(split_nd[0])
-        d = int(split_nd[1])
-    else:
-        raise ValueError("Invalid roll description")
-    if MANUAL_DICE_ROLLS:
-        result = int(input(f"Roll {nd} and type in the result. Press 0 to let the computer do it: "))
-        if result > n * d:
-            result = int(input(f"That result {result} is more than is possible with {nd}. If you're doing this on purpose as a test, enter the same thing now: "))
-
-    if result == 0: # If manual dice rolls is false or the input from the user was 0
-        nd = nd.lower()
-        for _ in range(0,n):
-            roll = randint(1,d)
-            result += roll
-    return result
-
-class Weapon:
-    def __init__(self, config = {}):
-        self.name = config.get("name","Unarmed")
-        self.type = config.get("type","melee")
-        self.damage = config.get("damage","1d2")
-        self.dr = config.get("dr",12)
-        self.category = config.get("category","unarmed")
-        self.rank = config.get("rank",False)
-        self.id = uuid.uuid4()        
-        
-
-
-    def __str__(self):
-        return "It's a %s called %s it deals %s" % (self.category, self.name, self.damage)
-    
-class Armour:
-    def __init__(self, config, self_character):
-        self.type = config["type"]
-        self.dice = config["dice"]
-        if self.dice == "1d2":
-            self.tier = 2
-        if self.dice == "1d4":
-            self.tier = 3
-            if self_character.is_pc:
-                self_character.abilities["agility"] += 2
-                self_character.defence += 2
-        if self.dice == "1d6":
-            self.tier = 4
-            if self_character.is_pc:
-                self_character.abilities["agility"] += 4
-                self_character.defence += 2
-        else:
-            self.tier = 1
-        #TODO: What about shields. They would be a type of Reaction
-
-    def reduce_tier(self, self_character, tier_reduction):
-        # TODO: introduce tiers to this properly
-        # Per the rules, if armour is damanged, the penalties to abilities are not modified. Thankfully...
-        print(f"Reducing {self_character.name}'s armour by a tier of {tier_reduction}")
-        if self.dice == "1d2":
-            print("Armour has been destroyed")
-            self_character.armour = None #TODO: Have an unarmoured state
-        elif self.dice == "1d4":
-            self.dice = "1d2"
-        elif self.dice == "1d6":
-            self.dice = "1d4"
-
-    def __str__(self):
-        return "It's a %s armour, it provides %s damage reduction" % (self.type, self.dice)
-    
-    #TODO: Should there be an option to remove armour?
 
 class Character:
     def greet(self, greeting):
@@ -165,9 +95,21 @@ class Character:
         print("\n\nHere are the available options\n")
         for i, action in enumerate(actions):
             print(f"Option {i}: ")
-            print(f"Use {action[1].name} on {action[0].name}")
+            if isinstance(action[1], Weapon):
+                print(f"Use {action[1].name} on {action[0].name}")
+            elif isinstance(action[1], Scroll):
+                print(f"Use {action[1].name} on {','.join([a.name for a in action[0]])}")
         decision = int(input("\nWhich option? Just type the number: "))
         return actions[decision]
+    
+    def set_scrolls(self, items):
+        scrolls = []
+        for item in items:
+            if item["type"] == "scroll":
+                scrolls.append(Scroll(item["name"], item["flavour_name"]))
+        print("Here are the scrolls" + ", ".join([scroll.name for scroll in scrolls]))
+        self.scrolls = scrolls
+                
 
     def __init__(self, config, name = None):
         if name is not None:
@@ -189,6 +131,9 @@ class Character:
             self.items = config["items"]
             self.init_weapons = config["weapons"]
             self.make_standard_attack = self.pc_make_standard_attack
+            self.set_scrolls(self.items) #TODO: It would be nice to be able to add new scrolls
+            print("Getting powers for today")
+            self.powers = roll_dice("1d4", MANUAL_DICE_ROLLS) + self.abilities["presence"]
         else:
             self.morale = config["morale"]
             self.size = config.get("size", 2)
@@ -211,11 +156,11 @@ class Character:
             self.decision_function = self.manual_action
         else:
             self.decision_function = self.random_action
-        
+        self.dizzy = False # TODO: If true: During this time, Powers will always fail in the worst possible way.
 
     def am_i_dead(self):
         # Well?
-        if self.alive is False:
+        if self.alive is False or self.current_hp < 0:
             msg = choice([
                 f"{self.name}: I'm dead folks!",
                 f"I guess that's the last we'll see of ol' {self.name}",
@@ -226,22 +171,23 @@ class Character:
             return True
         else:
             return False
-    
    
     def roll_broken(self):
         logging.debug("Death roll") # Not crazy about this whole "broken" concept
-        broken_roll = roll_dice("1d4")
+        broken_roll = roll_dice("1d4", MANUAL_DICE_ROLLS)
         if broken_roll == 4:
             print(f"{self.name} is DEAD")
             self.alive = False
 
     def take_standard_damage(self,damage):
-        if self.armour is not None:
+        if (self.armour is not None) and (not self.armour.dice.startswith("0d2")):
             logging.debug("Rolling for armour")
-            armour_reduction = roll_dice(self.armour.dice)
+            armour_reduction = roll_dice(self.armour.dice, MANUAL_DICE_ROLLS)
             logging.debug(f"{self.name} has {self.current_hp} HP before taking damage.")
             print(f"Reducing damage by {armour_reduction} due to armour")
             damage -= armour_reduction
+        else:
+            print(f"{self.name} has no armour")
         if damage > 0:
             self.current_hp -= damage
             print(f"{self.name} took {damage} damage and is {self.current_hp} HP now")
@@ -258,7 +204,7 @@ class Character:
             print("No damage done")
 
     def make_defence_roll(self, attacker):
-        defence_roll = roll_dice("1d20")
+        defence_roll = roll_dice("1d20", MANUAL_DICE_ROLLS)
         fumble = False
         if defence_roll == 20:
             print("CRITICAL DEFENCE WIN")
@@ -275,13 +221,47 @@ class Character:
         else:
             logging.debug(f"{self.name} did not dodge the attack from {attacker.name}")
             return False, fumble
+    
+    def use_scroll(self, action):
+        if self.dizzy:
+            logging.warning("Shouldn't try and use a scroll when dizzy")
+            self.take_standard_damage(4)
+            return
+        print("Rolling to hit for a scroll") #TODO: fix this
+        scroll_roll = roll_dice("1d20", MANUAL_DICE_ROLLS)
+        critical = False
+        multiplier = 1
+        if scroll_roll == 20:
+            critical = True
+            print("CRITICAL")
+            multiplier = 2
+        if scroll_roll == 1:
+            #self.destroy_weapon(weapon)
+            print("FUMBLE") # TODO: Figure out what to do here
+        # fumble rolls go here
+        scroll_roll += self.abilities["presence"]
+        dr = 12
+        logging.debug(f"DR is {dr}, roll result is {scroll_roll}, critical is {critical}")
+        if critical or scroll_roll >= dr:
+            for target in action[0]:
+                if target.alive is False:
+                    logging.warning("Attacking someone who is already dead") #TODO: Fix this
+                action[1].inflict_damage(target,multiplier)
+            #target_alive = target.take_standard_damage(multiplier * damage)
+            self.powers -= 1
+        elif scroll_roll < dr:
+            print(f"{self.name} failed the scroll roll and is now dizzy. Roll a d2 for HP loss")
+            damage = roll_dice("1d2", MANUAL_DICE_ROLLS)
+            self.take_standard_damage(damage)
+            self.dizzy = True #TODO: How to make this only apply "for the next hour"
+
 
     def pc_make_standard_attack(self, target, weapon):
         print(f"{self.name} (PC) attacks {target.name} with {weapon.name}")
         dr = weapon.dr
         multiplier = 1
         critical = False
-        attack_roll = roll_dice("1d20")
+        attack_roll = roll_dice("1d20", MANUAL_DICE_ROLLS)
         if attack_roll == 20:
             critical = True
             print("CRITICAL")
@@ -297,7 +277,7 @@ class Character:
             logging.debug(f"DR is {dr}, roll result is {attack_roll}, critical is {critical}")
             if critical or attack_roll >= dr: # Presumably Crits always hit?
                 print(f"{self.name} hits! Rolling for damage.")
-                damage = roll_dice(weapon.damage)
+                damage = roll_dice(weapon.damage, MANUAL_DICE_ROLLS)
                 logging.debug(f"Damage roll is {damage}, multiplier is {multiplier}")
                 target_alive = target.take_standard_damage(multiplier * damage)
                 if target_alive and critical and target.armour is not None:
@@ -318,7 +298,7 @@ class Character:
             print(f"{self.name} misses.")
         else:
             print(f"{self.name} hits! Rolling for damage.")
-            damage = roll_dice(weapon.damage)
+            damage = roll_dice(weapon.damage, MANUAL_DICE_ROLLS)
             logging.debug(f"Damage roll is {damage}, multiplier is {multiplier}")
             target_alive = target.take_standard_damage(multiplier * damage)
             if fumble and target_alive is True:
@@ -330,15 +310,21 @@ class Character:
         # TODO: Give NPCs placeholder defence stats to handle this better
         print(f"{self.name} (NPC) attacks {target.name} with {weapon.name}")
         multiplier = 1
-        damage = multiplier * roll_dice(weapon.damage)
+        damage = multiplier * roll_dice(weapon.damage, MANUAL_DICE_ROLLS)
         target.take_standard_damage(damage)
 
     def get_available_actions(self, others):
         #TODO: Need to filter based on ALLOW_ATTACK_ALLIES
-        action_tuples = []
+        weapon_actions = []
+        scroll_actions = []
         for other in others:
-            action_tuples += [ (other, weapon) for weapon in [self.primary_weapon, self.secondary_weapon] ]
-        return action_tuples
+            weapon_actions += [ (other, weapon) for weapon in [self.primary_weapon, self.secondary_weapon] ]
+        if self.is_pc is True:
+            if self.powers > 1 and (self.scrolls is not None):
+                for scroll in self.scrolls:
+                    scroll_actions = scroll.list_actions(others)
+                    logging.debug(scroll_actions)
+        return scroll_actions + weapon_actions
     
     def start_turn(self, others):
         print("------------------------------")
@@ -351,15 +337,20 @@ class Character:
         for _ in range(0, self.actions_this_turn):
             actions = self.get_available_actions(others)
             action = self.decision_function(actions)
-            if action[0].is_pc and self.is_pc: # this might be the usecase for is_ally?
-                logging.warning(f"{self.name} is attacking their ally {action[0].name}")
-                self.make_standard_attack(action[0], action[1])
-            elif (not action[0].is_pc) and (not self.is_pc):
-                logging.warning(f"{self.name} is attacking their ally {action[0].name}")
-                self.npc_make_standard_attack_on_npc(action[0], action[1])
+            # Scrolls can attack more than one Character, so this bit needs to handle them differently
+            if isinstance(action[1], Scroll):
+                self.use_scroll(action)
+                #self.make_standard_attack(action[0], action[1])
             else:
-                self.make_standard_attack(action[0], action[1])
-            self.last_target = action[0]
+                if action[0].is_pc and self.is_pc: # this might be the usecase for is_ally?
+                    logging.warning(f"{self.name} is attacking their ally {action[0].name}")
+                    self.make_standard_attack(action[0], action[1])
+                elif (not action[0].is_pc) and (not self.is_pc):
+                    logging.warning(f"{self.name} is attacking their ally {action[0].name}")
+                    self.npc_make_standard_attack_on_npc(action[0], action[1])
+                else:
+                    self.make_standard_attack(action[0], action[1])
+                self.last_target = action[0]
             print("------------------------------")
             return action[0]
         # TODO: Check for status effects
@@ -383,94 +374,6 @@ def poll_team(team):
             break
     return team_left
 
-class Team:
-    def __init__(self, characters, name):
-        self.chars_starting = characters
-        self.chars = characters
-        self.name = name
-
-    def update_team(self):
-        self.chars = [char for char in self.chars if char.alive]
-        return len(self.chars)
-
-
-
-class Battle: # Is this one class too many? Probably, but I've got class fever over here
-    def initiative(self):
-        print("Roll for initiative")
-        initiative_roll = roll_dice("1d6")
-        print(f"Initiative roll is {initiative_roll}")
-        if initiative_roll <= 3:
-            return False # PCs not going first
-        else:
-            return True # PCs going first
-        # TODO: Individual initiative may not be RAW
-
-    
-    def __init__(self, pcs, npcs):
-        shuffle(pcs)
-        shuffle(npcs)
-        self.pcs = pcs
-        self.npcs = npcs
-        self.participants_starting = pcs + npcs
-        self.participants = pcs + npcs
-        self.round = 1
-
-        pcs_going_first = self.initiative()
-        if pcs_going_first:
-            self.first_team = Team(pcs,"Team 1")
-            self.second_team = Team(npcs,"Team 2")
-        else:
-            self.first_team = Team(npcs,"Team 1")
-            self.second_team = Team(pcs,"Team 2")
-
-        self.battle_over = False
-
-
-    def run_battle(self):
-        rounds = 0
-        team_turns_taken = 0
-        individual_turns_taken = 0
-        while self.battle_over is False:
-
-            #TODO: This whole team term block could be a function
-            for char in self.first_team.chars:
-                others = [x for x in self.participants if x != char and x.alive is True]
-                if char.alive:
-                    target = char.start_turn(others)
-                    individual_turns_taken += 1
-                    if target is not None:
-                        self.first_team.last_target = target
-            team_turns_taken += 1
-            if 0 == self.first_team.update_team():
-                self.battle_over = True
-                print(f"Second team ({self.second_team.name}) won. Congrats to the survivor(s): {','.join([char.name for char in self.second_team.chars])}")
-                break
-            if 0 == self.second_team.update_team():
-                self.battle_over = True
-                print(f"First team ({self.first_team.name}) won. Congrats to the survivor(s): {', '.join([char.name for char in self.first_team.chars])}")
-                break
-            
-            for char in self.second_team.chars:
-                others = [x for x in self.participants if x != char and x.alive is True]
-                if char.alive:
-                    char.start_turn(others)
-                    individual_turns_taken += 1
-            team_turns_taken += 1
-            if 0 == self.second_team.update_team():
-                self.battle_over = True
-                print(f"First team ({self.first_team.name}) won. Congrats to the survivors(s): {','.join([char.name for char in self.first_team.chars])}")
-                break
-            if 0 == self.first_team.update_team():
-                self.battle_over = True
-                print(f"Second team ({self.second_team.name}) won. Congrats to the survivors(s): {','.join([char.name for char in self.second_team.chars])}")
-                break
-            rounds += 1
-        print(self.first_team.chars)
-        print(self.second_team.chars)
-        print(f"There were {rounds} rounds and {individual_turns_taken} individual turns")
-
-
 
 with open("configs/pc_sample.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
@@ -480,15 +383,23 @@ with open("configs/pc_sample_2.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 rolf = Character(config)
 
+with open("configs/pc_sample_scroll.yaml", "r") as f:
+    config = yaml.load(f, Loader=yaml.SafeLoader)
+urm = Character(config)
+urm2 = Character(config, "urm2")
+
 with open("configs/npc_sample.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 big_guy = Character(config)
+big_guy2 = Character(config, "Less big")
 
 with open("configs/npc_sample_2.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 little_guy = Character(config)
 little_guy_2 = Character(config, "The Other Little Guy")
+little_guy_3 = Character(config, "YALG")
+little_guy_4 = Character(config, "YALG2")
 
 
-battle = Battle([rolf, urvarg],[big_guy, little_guy, little_guy_2])
+battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2, little_guy_3, little_guy_4], big_guy, MANUAL_DICE_ROLLS)
 battle.run_battle()
