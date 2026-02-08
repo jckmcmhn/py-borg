@@ -180,12 +180,14 @@ class Character:
             self.alive = False
 
     def take_standard_damage(self,damage):
-        if self.armour is not None:
+        if (self.armour is not None) and (not self.armour.dice.startswith("0d2")):
             logging.debug("Rolling for armour")
             armour_reduction = roll_dice(self.armour.dice, MANUAL_DICE_ROLLS)
             logging.debug(f"{self.name} has {self.current_hp} HP before taking damage.")
             print(f"Reducing damage by {armour_reduction} due to armour")
             damage -= armour_reduction
+        else:
+            print(f"{self.name} has no armour")
         if damage > 0:
             self.current_hp -= damage
             print(f"{self.name} took {damage} damage and is {self.current_hp} HP now")
@@ -224,6 +226,7 @@ class Character:
         if self.dizzy:
             logging.warning("Shouldn't try and use a scroll when dizzy")
             self.take_standard_damage(4)
+            return
         print("Rolling to hit for a scroll") #TODO: fix this
         scroll_roll = roll_dice("1d20", MANUAL_DICE_ROLLS)
         critical = False
@@ -241,6 +244,8 @@ class Character:
         logging.debug(f"DR is {dr}, roll result is {scroll_roll}, critical is {critical}")
         if critical or scroll_roll >= dr:
             for target in action[0]:
+                if target.alive is False:
+                    logging.warning("Attacking someone who is already dead") #TODO: Fix this
                 action[1].inflict_damage(target,multiplier)
             #target_alive = target.take_standard_damage(multiplier * damage)
             self.powers -= 1
@@ -319,10 +324,6 @@ class Character:
                 for scroll in self.scrolls:
                     scroll_actions = scroll.list_actions(others)
                     logging.debug(scroll_actions)
-        #return scroll_actions
-        #return action_tuples
-        print("HERE ARE THE SCROLLS")
-        print(scroll_actions)
         return scroll_actions + weapon_actions
     
     def start_turn(self, others):
@@ -390,12 +391,15 @@ urm2 = Character(config, "urm2")
 with open("configs/npc_sample.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 big_guy = Character(config)
+big_guy2 = Character(config, "Less big")
 
 with open("configs/npc_sample_2.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 little_guy = Character(config)
 little_guy_2 = Character(config, "The Other Little Guy")
+little_guy_3 = Character(config, "YALG")
+little_guy_4 = Character(config, "YALG2")
 
 
-battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2], MANUAL_DICE_ROLLS)
+battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2, little_guy_3, little_guy_4], big_guy, MANUAL_DICE_ROLLS)
 battle.run_battle()

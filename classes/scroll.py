@@ -34,7 +34,7 @@ class Scroll:
     def inflict_standard_damage(self,target, multiplier):
         print("Roll for spell damage")
         damage = roll_dice(self.damage, self.manual)
-        damage = multiplier * 6
+        damage = multiplier * damage
         print(f"Inflicting {damage} scroll damage to {target.name}")
         target.take_standard_damage(damage)
 
