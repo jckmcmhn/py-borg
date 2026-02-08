@@ -19,12 +19,8 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
         shuffle(pcs)
         shuffle(npcs)
         self.pcs = pcs
-        self.starting_npcs = len(npcs)
         self.npcs = npcs
         self.leader = leader
-        self.leader_killed = False
-        self.half_elim = False
-        self.one_third = False
         self.participants_starting = pcs + npcs
         self.participants = pcs + npcs
         self.round = 1
@@ -33,10 +29,10 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
         if pcs_going_first:
             self.first_team = Team(pcs,"Team 1", manual)
             self.pc_team = self.first_team
-            self.second_team = Team(npcs,"Team 2", manual)
+            self.second_team = Team(npcs,"Team 2", manual, leader)
             self.npc_team = self.second_team
         else:
-            self.first_team = Team(npcs,"Team 1", manual)
+            self.first_team = Team(npcs,"Team 1", manual, leader)
             self.npc_team = self.first_team
             self.second_team = Team(pcs,"Team 2", manual)
             self.pc_team = self.second_team
@@ -53,18 +49,16 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
                 i_individual_turns_taken += 1
                 if target is not None:
                     on_team.last_target = target
-                if max([on_team.update_team(),off_team.update_team()]) == 0:
+
+                if min([on_team.update_team(),off_team.update_team()]) == 0:
                     self.battle_over = True
                     break
-                if (not self.leader.alive) and (not self.leader_killed):
-                    print(f"The NPC leader {self.leader.name} is dead!")
-                    self.leader_killed = True # So we only check this once
-                    self.npc_team.morale_test()
-                if (0.5 > (len(self.npcs) /self.starting_npcs) / 2) and (not self.half_elim):
-                    print(f"Half the NPCs are gone")
-                    self.half_elim = True # So we only check this once
-                    self.npc_team.morale_test()
-                self.npc_team.morale_test_check_one_third()
+                
+                self.npc_team.morale_test_check_all()
+                
+                if min([on_team.update_team(),off_team.update_team()]) == 0:
+                    self.battle_over = True
+                    break
                     
         i_team_turns_taken += 1
         if 0 == on_team.update_team():

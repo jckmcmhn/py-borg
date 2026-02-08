@@ -18,6 +18,7 @@ class Armour:
         else:
             self.tier = 1
         #TODO: What about shields. They would be a type of Reaction
+        #TODO: Would be good to log if armour has been damaged
 
     def reduce_tier(self, self_character, tier_reduction):
         # TODO: introduce tiers to this properly
