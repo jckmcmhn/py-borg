@@ -14,14 +14,22 @@ abilities:
   agility: 0 
   toughness: 0
 items: 
-  - type: potion
-    heal: 1
+  - type: healing
+    name: medicine chest
+    dice: 1d6
+    number: 4 # this should be something that's rolled sometimes
   - type: scroll
     name: fire ball
-    flavour_name: Palms open the southern gate # d2 creatures dealing d8 damage per creature.
+    flavour_name: Palms open the southern gate
   - type: scroll
     name: lightning bolt
     flavour_name: Nine violet signs unknot the storm
+  - type: scroll
+    name: death
+    flavour_name: DEATH!
+  - type: scroll
+    name: grace
+    flavour_name: Grace of a dead saint
 weapons: 
   - name: knife
     type: melee

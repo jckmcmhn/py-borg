@@ -84,5 +84,6 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
             team_turns_taken += i_team_turns_taken
             individual_turns_taken += i_individual_turns_taken
             rounds += 1
+            print(f"End of round {rounds}")
         print(f"There were {rounds} rounds and {individual_turns_taken} individual turns")
 

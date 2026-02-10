@@ -23,7 +23,7 @@ elif args.log == "debug":
         level=logging.DEBUG)
 
 MANUAL_DICE_ROLLS = args.manual_dice
-ALLOW_ATTACK_ALLIES = args.allow_attack_allies
+ALLOW_ATTACK_ALLIES = args.allow_attack_allies.lower() == "true"
 
 
 settings = {
@@ -39,7 +39,7 @@ from classes import roll_dice
 from classes.battle import Battle
 from classes.armour import Armour
 from classes.weapon import Weapon
-from classes.scroll import Scroll
+from classes.equipment import Scroll, General
 
 print("Starting the game")
 print(f"MANUAL_DICE_ROLLS is {MANUAL_DICE_ROLLS}\n\n")
@@ -122,7 +122,16 @@ class Character:
         print("Here are the scrolls " + ", ".join([scroll.name for scroll in scrolls]))
         self.scrolls = scrolls
         self.scroll_codes = scroll_codes
-                
+
+    def set_equipment(self, items):
+        print(items)
+        equipment = []
+        for item in items:
+            if item["type"] != "scroll":
+                i = General(item["name"], item["dice"], self.settings)
+                equipment.append(i)
+        print("Here are the scrolls " + ", ".join([i.name for i in equipment]))
+        self.equipment = equipment       
 
     def get_obs(self, audience):
         if self.alive is False:
@@ -179,6 +188,7 @@ class Character:
             self.init_weapons = config["weapons"]
             self.make_standard_attack = self.pc_make_standard_attack
             self.set_scrolls(self.items) #TODO: It would be nice to be able to add new scrolls
+            self.set_equipment(self.items)
             print("Getting powers for today")
             self.powers = roll_dice("1d4", self.settings["manual_dice"] in ["pc_only", "always"]) + self.abilities["presence"]
         else:
@@ -311,6 +321,14 @@ class Character:
             self.take_standard_damage(damage + self.settings["mod_damage"])
             self.dizzy = True #TODO: How to make this only apply "for the next hour"
 
+    def use_equipment(self, action):
+        equipment = action[1]
+        target = action[0]
+        logging.debug(f"{self.name} is using {equipment.name} on {action[0].name}")
+        equipment.use(target)
+        equipment.count -= 1
+        print(f"Ther are {equipment.count} {equipment.name}s left")
+
 
     def pc_make_standard_attack(self, target, weapon):
         print(f"{self.name} (PC) attacks {target.name} with {weapon.name}")
@@ -374,6 +392,7 @@ class Character:
         #TODO: Need to filter based on ALLOW_ATTACK_ALLIES
         weapon_actions = []
         scroll_actions = []
+        equipment_actions = []
         others = allies + enemies
         if self.settings["allow_attack_allies"]:
             targets = others
@@ -385,8 +404,11 @@ class Character:
             if self.powers > 1 and (self.scrolls is not None):
                 for scroll in self.scrolls:
                     scroll_actions = scroll.list_actions(allies, enemies, self)
-                    #logging.debug(scroll_actions)
-        return scroll_actions + weapon_actions
+            if self.equipment is not None:
+                for item in self.equipment:
+                    if item.count > 0: #Pretty embarassed not to remember this sooner, Urm was on -13 medicine chests
+                        equipment_actions = item.list_actions(allies, enemies, self)
+        return scroll_actions + weapon_actions + equipment_actions
     
     def start_turn(self, allies, enemies):
         print("------------------------------")
@@ -396,13 +418,15 @@ class Character:
             print("------------------------------")
             return None
         self.actions_this_turn += 1
-        others = allies + enemies
         for _ in range(0, self.actions_this_turn):
             actions = self.get_available_actions(allies, enemies)
             action = self.decision_function(actions)
             # Scrolls can attack more than one Character, so this bit needs to handle them differently
             if isinstance(action[1], Scroll):
                 self.use_scroll(action)
+            elif isinstance(action[1], General):
+                print("Using a non-scroll action")
+                self.use_equipment(action)
                 #self.make_standard_attack(action[0], action[1])
             else:
                 if action[0].is_pc and self.is_pc: # this might be the usecase for is_ally?
@@ -465,5 +489,5 @@ little_guy_4 = Character(config, settings, "YALG2")
 
 
 #battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2, little_guy_3, little_guy_4], big_guy, self.settings["manual_dice"])
-battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2, little_guy_3,], settings, big_guy)
+battle = Battle([rolf, urm],[big_guy, little_guy, little_guy_2], settings, big_guy)
 battle.run_battle()

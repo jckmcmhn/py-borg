@@ -13,8 +13,10 @@ abilities:
   agility: 1 
   toughness: 1
 items: 
-  - type: potion
-    heal: 1
+  - type: healing
+    name: medicine chest
+    dice: 1d6
+    number: 4 # this should be something that's rolled sometimes
 weapons: 
   - name: big sword 2
     type: melee

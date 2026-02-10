@@ -14,6 +14,11 @@ weapons:
     type: melee
     dice: 1d6
     category: unarmed
+items: 
+  - type: healing
+    name: medicine chest
+    dice: 1d6
+    number: 4 # this should be something that's rolled sometimes
 morale: 
   8
 armour:
