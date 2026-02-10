@@ -12,7 +12,7 @@ size: 3 # Working on this bit
 weapons: 
   - name: big fists
     type: melee
-    damage: 1d6
+    dice: 1d6
     category: unarmed
 morale: 
   8

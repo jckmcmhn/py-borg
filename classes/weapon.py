@@ -1,11 +1,11 @@
 import uuid
 
 class Weapon:
-    def __init__(self, config = {}, manual=False):
-        self.manual = manual
+    def __init__(self, settings, config = {}):
+        self.settings = settings
         self.name = config.get("name","Unarmed")
         self.type = config.get("type","melee")
-        self.damage = config.get("damage","1d2")
+        self.dice = config.get("damage","1d2")
         self.dr = config.get("dr",12)
         self.category = config.get("category","unarmed")
         self.rank = config.get("rank",False)

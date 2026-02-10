@@ -18,18 +18,18 @@ items:
 weapons: 
   - name: big sword 2
     type: melee
-    damage: 1d6
+    dice: 1d6
     dr: 12
     category: sword
     rank: primary
   - name: big sword
     type: melee
-    damage: 1d6
+    dice: 1d6
     dr: 12
     category: sword
   - name: big sword 3
     type: melee
-    damage: 1d6
+    dice: 1d6
     dr: 12
     category: sword
 morale: 

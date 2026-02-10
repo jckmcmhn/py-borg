@@ -12,7 +12,7 @@ size: 1 # Working on this bit
 weapons: 
   - name: little sword
     type: melee
-    damage: 1d2
+    dice: 1d2
     category: sword
 morale: 
   3

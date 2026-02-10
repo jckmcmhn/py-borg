@@ -1,6 +1,6 @@
 class Armour:
-    def __init__(self, config, self_character, manual=False):
-        self.manual = manual
+    def __init__(self, config, self_character, settings):
+        self.settings = settings
         self.type = config["type"]
         self.dice = config["dice"]
         if self.dice == "1d2":
@@ -18,6 +18,7 @@ class Armour:
         else:
             self.tier = 1
         #TODO: What about shields. They would be a type of Reaction
+        #TODO: Would be good to log if armour has been damaged
 
     def reduce_tier(self, self_character, tier_reduction):
         # TODO: introduce tiers to this properly
