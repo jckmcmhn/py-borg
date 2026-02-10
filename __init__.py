@@ -7,6 +7,7 @@ from random import choice
 parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--manual_dice", help = "One of 'never', 'pc_only', 'npc_only', 'always' and 'pauses'", nargs='?', const="never")
 parser.add_argument("-l", "--log", help = "Log level", nargs='?', const="info")
+parser.add_argument("-a", "--allow_attack_allies", nargs='?', const=False)
 args = parser.parse_args()
 if args.log == "info":
     logging.basicConfig(
@@ -22,12 +23,12 @@ elif args.log == "debug":
         level=logging.DEBUG)
 
 MANUAL_DICE_ROLLS = args.manual_dice
-ALLOW_ATTACK_ALLIES = True
+ALLOW_ATTACK_ALLIES = args.allow_attack_allies
 
 
 settings = {
     "manual_dice": MANUAL_DICE_ROLLS, # one of "never", "pc_only", "npc_only", "always" and "pauses"
-    "allow_attack_allies": True,
+    "allow_attack_allies": ALLOW_ATTACK_ALLIES,
     "mod_damage": 0,
     "to_hit": 0,
     "to_dodge": 0
@@ -42,6 +43,7 @@ from classes.scroll import Scroll
 
 print("Starting the game")
 print(f"MANUAL_DICE_ROLLS is {MANUAL_DICE_ROLLS}\n\n")
+print(f"ALLOW_ATTACK_ALLIES is {ALLOW_ATTACK_ALLIES}\n\n")
 print("Enter 0 to skip manual dice rolls if needed")
 
 class Character:
@@ -117,7 +119,7 @@ class Character:
                 scroll = Scroll(item["name"], item["flavour_name"], self.settings)
                 scrolls.append(scroll)
                 scroll_codes.append(scroll.scroll_code)
-        print("Here are the scrolls" + ", ".join([scroll.name for scroll in scrolls]))
+        print("Here are the scrolls " + ", ".join([scroll.name for scroll in scrolls]))
         self.scrolls = scrolls
         self.scroll_codes = scroll_codes
                 
@@ -197,7 +199,7 @@ class Character:
             self.armour = Armour(config["armour"], self, self.settings)
         else:
             self.armour = None
-        if self.settings["manual_dice"] is True:
+        if self.settings["manual_dice"] in ["always", "pc_only"]:
             self.decision_function = self.manual_action
         else:
             self.decision_function = self.random_action
@@ -248,6 +250,15 @@ class Character:
         else:
             print("No damage done")
 
+    def apply_healing(self,heal):
+        if heal > 0:
+            self.current_hp += heal
+            self.current_hp = min(self.current_hp, self.max_hp)
+            print(f"{self.name} healed {heal} damage and is {self.current_hp} HP now")
+            return self.alive
+        else:
+            print("No healing done")
+
     def make_defence_roll(self, attacker):
         defence_roll = roll_dice("1d20", self.settings["manual_dice"] in ["always", "pc_only"])
         fumble = False
@@ -291,7 +302,7 @@ class Character:
             for target in action[0]:
                 if target.alive is False:
                     logging.warning("Attacking someone who is already dead") #TODO: Fix this
-                action[1].inflict_damage(target,multiplier)
+                action[1].apply_scroll_effect(target,multiplier)
             #target_alive = target.take_standard_damage(multiplier * damage)
             self.powers -= 1
         elif scroll_roll < dr:
@@ -359,20 +370,25 @@ class Character:
         damage = multiplier * roll_dice(weapon.dice, self.settings["manual_dice"] in ["always", "npc_only"])
         target.take_standard_damage(damage)
 
-    def get_available_actions(self, others):
+    def get_available_actions(self, allies, enemies):
         #TODO: Need to filter based on ALLOW_ATTACK_ALLIES
         weapon_actions = []
         scroll_actions = []
-        for other in others:
+        others = allies + enemies
+        if self.settings["allow_attack_allies"]:
+            targets = others
+        else:
+            targets = enemies
+        for other in targets:
             weapon_actions += [ (other, weapon) for weapon in [self.primary_weapon, self.secondary_weapon] ]
         if self.is_pc is True:
             if self.powers > 1 and (self.scrolls is not None):
                 for scroll in self.scrolls:
-                    scroll_actions = scroll.list_actions(others)
+                    scroll_actions = scroll.list_actions(allies, enemies, self)
                     #logging.debug(scroll_actions)
         return scroll_actions + weapon_actions
     
-    def start_turn(self, others):
+    def start_turn(self, allies, enemies):
         print("------------------------------")
         print(f"{self.name} is starting {self.possessive} turn")
         if self.am_i_dead():
@@ -380,8 +396,9 @@ class Character:
             print("------------------------------")
             return None
         self.actions_this_turn += 1
+        others = allies + enemies
         for _ in range(0, self.actions_this_turn):
-            actions = self.get_available_actions(others)
+            actions = self.get_available_actions(allies, enemies)
             action = self.decision_function(actions)
             # Scrolls can attack more than one Character, so this bit needs to handle them differently
             if isinstance(action[1], Scroll):

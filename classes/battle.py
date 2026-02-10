@@ -44,9 +44,9 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
         i_team_turns_taken = 0
         i_individual_turns_taken = 0
         for char in on_team.chars:
-            others = [x for x in self.participants if x != char and x.alive is True]
+            allies = [x for x in on_team.chars if x != char and x.alive is True]
             if char.alive:
-                target = char.start_turn(others)
+                target = char.start_turn(allies, off_team.chars)
                 i_individual_turns_taken += 1
                 if target is not None:
                     on_team.last_target = target

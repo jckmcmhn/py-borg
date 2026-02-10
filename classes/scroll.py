@@ -1,6 +1,7 @@
 import uuid
 from itertools import combinations_with_replacement
 from classes import roll_dice
+import logging
 
 name_to_flavour = {
     "fireball": "Palms open the southern gate",
@@ -9,35 +10,77 @@ name_to_flavour = {
 
 name_to_config = {
     "fireball": {
-        "damage": "1d8",
+        "dice": "1d8",
         "scroll_code": 1,
         "type": "offensive",
     },
     "lightningbolt": {
-        "damage": "1d6",
-        "scroll_code": 2,
+        "dice": "1d6",
+        "scroll_code": 6,
         "type": "offensive"
+    },
+    "death": {
+        "dice": "4d10",
+        "scroll_code": 10,
+        "type": "offensive"
+    },
+    "grace": {
+        "dice": "1d10",
+        "scroll_code": 11,
+        "type": "healing"
+    },
+    "aegis": {
+        "dice": "2d6",
+        "scroll_code": 14,
+        "type": "healing"
     },
 }
 
 class Scroll:
 
-
-
-    def list_actions(self,others):
-        if self.scroll_code in [1,2]: # Fireball
-            #TODO: Need to filter based on ALLOW_ATTACK_ALLIES
-            target_combinations = list(combinations_with_replacement(others,2))
+    def list_actions(self, allies, enemies, caster):
+        if self.scroll_code in [1,6]: # Fireball Lightning
+            if self.settings["allow_attack_allies"]:
+                targets = allies + enemies
+            else:
+                targets = enemies
+            target_combinations = list(combinations_with_replacement(targets,2))
             action_tuples = [ (tc, self) for tc in target_combinations]
-            return action_tuples
+        elif self.scroll_code == 10:
+            logging.debug(f"{caster.name} is casting DEATH!")
+            all = allies + enemies + [caster] # TODO: The rules say "All creatures within 30 feet" not all creatures
+            action_tuples = [ (all, self) ]
+            logging.debug(action_tuples)
+        elif self.scroll_code in [11, 14]:
+            if self.settings["allow_attack_allies"]:
+                targets = allies + enemies + [caster]
+            else:
+                targets = enemies + [caster]
+            if self.scroll_code == 11:
+                n = 2
+            else:
+                n = 1
+            target_combinations = list(combinations_with_replacement(targets,n))
+            action_tuples = [ (tc, self) for tc in target_combinations]
+            logging.debug(action_tuples)
+        
+        return action_tuples
 
     def inflict_standard_damage(self,target, multiplier):
         print("Roll for spell damage")
-        damage = roll_dice(self.damage, self.settings["manual_dice"] in ["always"])
+        damage = roll_dice(self.dice, self.settings["manual_dice"] in ["always"])
         damage += self.settings["mod_damage"]
         damage = multiplier * damage
         print(f"Inflicting {damage} scroll damage to {target.name}")
         target.take_standard_damage(damage)
+
+    def heal(self,target, multiplier):
+        print("Roll for healing")
+        healing = roll_dice(self.dice, self.settings["manual_dice"] in ["always"])
+        #damage += self.settings["mod_damage"] #TODO: decide if the mod should apply here
+        healing = multiplier * healing
+        print(f"Applying {healing} scroll damage to {target.name}")
+        target.apply_healing(healing)
 
     def __init__(self, name, flavour, settings):
         self.settings = settings
@@ -49,9 +92,11 @@ class Scroll:
         config = name_to_config[name]
         self.type = config["type"]
         self.scroll_code = config["scroll_code"]
-        self.damage = config["damage"]
+        self.dice = config["dice"]
         if name not in name_to_config.keys():
             raise ValueError(f"Invalid Scroll name {self.name}")
 
-        if name in ["fireball", "lightningbolt"]:
-            self.inflict_damage = self.inflict_standard_damage
+        if name in ["fireball", "lightningbolt", "death"]:
+            self.apply_scroll_effect = self.inflict_standard_damage
+        elif name == "grace":
+            self.apply_scroll_effect = self.heal
