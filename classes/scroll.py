@@ -33,13 +33,14 @@ class Scroll:
 
     def inflict_standard_damage(self,target, multiplier):
         print("Roll for spell damage")
-        damage = roll_dice(self.damage, self.manual)
+        damage = roll_dice(self.damage, self.settings["manual_dice"] in ["always"])
+        damage += self.settings["mod_damage"]
         damage = multiplier * damage
         print(f"Inflicting {damage} scroll damage to {target.name}")
         target.take_standard_damage(damage)
 
-    def __init__(self, name, flavour, manual=False):
-        self.manual = manual
+    def __init__(self, name, flavour, settings):
+        self.settings = settings
         self.name = name
         self.flavour = flavour
         self.id = uuid.uuid4()

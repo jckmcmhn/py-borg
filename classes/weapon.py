@@ -1,8 +1,8 @@
 import uuid
 
 class Weapon:
-    def __init__(self, config = {}, manual=False):
-        self.manual = manual
+    def __init__(self, settings, config = {}):
+        self.settings = settings
         self.name = config.get("name","Unarmed")
         self.type = config.get("type","melee")
         self.dice = config.get("damage","1d2")

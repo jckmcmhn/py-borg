@@ -5,7 +5,7 @@ from classes.team import Team
 class Battle: # Is this one class too many? Probably, but I've got class fever over here
     def initiative(self):
         print("Roll for initiative")
-        initiative_roll = roll_dice("1d6", self.manual)
+        initiative_roll = roll_dice("1d6", self.settings["manual_dice"] in ["always", "pc_only"])
         print(f"Initiative roll is {initiative_roll}")
         if initiative_roll <= 3:
             return False # PCs not going first
@@ -14,8 +14,8 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
         # TODO: Individual initiative may not be RAW
 
     
-    def __init__(self, pcs, npcs, leader = None, manual=False):
-        self.manual = manual
+    def __init__(self, pcs, npcs, settings, leader = None):
+        self.settings = settings
         shuffle(pcs)
         shuffle(npcs)
         self.pcs = pcs
@@ -27,19 +27,20 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
 
         pcs_going_first = self.initiative()
         if pcs_going_first:
-            self.first_team = Team(pcs,"Team 1", manual)
+            self.first_team = Team(pcs,"Team 1", self.settings)
             self.pc_team = self.first_team
-            self.second_team = Team(npcs,"Team 2", manual, leader)
+            self.second_team = Team(npcs,"Team 2", self.settings, leader)
             self.npc_team = self.second_team
         else:
-            self.first_team = Team(npcs,"Team 1", manual, leader)
+            self.first_team = Team(npcs,"Team 1", self.settings, leader)
             self.npc_team = self.first_team
-            self.second_team = Team(pcs,"Team 2", manual)
+            self.second_team = Team(pcs,"Team 2", self.settings)
             self.pc_team = self.second_team
 
         self.battle_over = False
 
     def run_round_side(self, on_team, off_team):
+        print(f"The team of {', '.join([ char.name for char in on_team.chars])} is taking their go") #TODO: Won't read right if only one member left
         i_team_turns_taken = 0
         i_individual_turns_taken = 0
         for char in on_team.chars:

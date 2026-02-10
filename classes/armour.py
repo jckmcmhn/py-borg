@@ -1,6 +1,6 @@
 class Armour:
-    def __init__(self, config, self_character, manual=False):
-        self.manual = manual
+    def __init__(self, config, self_character, settings):
+        self.settings = settings
         self.type = config["type"]
         self.dice = config["dice"]
         if self.dice == "1d2":

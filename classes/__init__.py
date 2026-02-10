@@ -1,7 +1,8 @@
 import re
 from random import randint
 
-def roll_dice(nd,manual):
+
+def roll_dice(nd, manual):
     result = 0
     if nd.startswith("d"):
         nd = "1" + nd

@@ -5,7 +5,7 @@ import yaml
 from random import choice
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-m", "--manual", help = "If true, prompt the user to provide every dice roll", nargs='?', const=False)
+parser.add_argument("-m", "--manual_dice", help = "One of 'never', 'pc_only', 'npc_only', 'always' and 'pauses'", nargs='?', const="never")
 parser.add_argument("-l", "--log", help = "Log level", nargs='?', const="info")
 args = parser.parse_args()
 if args.log == "info":
@@ -21,10 +21,17 @@ elif args.log == "debug":
         datefmt="%Y-%m-%d %H:%M",
         level=logging.DEBUG)
 
-MANUAL_DICE_ROLLS = False
-if args.manual:
-    MANUAL_DICE_ROLLS = True
+MANUAL_DICE_ROLLS = args.manual_dice
 ALLOW_ATTACK_ALLIES = True
+
+
+settings = {
+    "manual_dice": MANUAL_DICE_ROLLS, # one of "never", "pc_only", "npc_only", "always" and "pauses"
+    "allow_attack_allies": True,
+    "mod_damage": 0,
+    "to_hit": 0,
+    "to_dodge": 0
+}
 
 
 from classes import roll_dice
@@ -49,7 +56,7 @@ class Character:
             #We have to convert all the config into Weapon objects
             weapons = []
             for weapon in self.weapons:
-                weapon = Weapon(weapon)
+                weapon = Weapon(self.settings, weapon)
                 weapons.append(weapon)
                 if weapon.rank == "primary":
                     self.primary_weapon = weapon
@@ -58,11 +65,11 @@ class Character:
         else:
             weapons = self.weapons
         if len(weapons) == 0:
-            self.primary_weapon = Weapon() #unarmed
-            self.secondary_weapon = Weapon()
+            self.primary_weapon = Weapon(self.settings) #unarmed
+            self.secondary_weapon = Weapon(self.settings)
         elif len(weapons) == 1:
             self.primary_weapon = weapons[0]
-            self.secondary_weapon = Weapon()
+            self.secondary_weapon = Weapon(self.settings)
         else:
             if len(weapons) > 2:
                 print(f"{self.name} is carrying {len(weapons)} weapons in {self.possessive} inventory. {len(weapons) - 2} will have to go in {self.possessive} bag")
@@ -107,7 +114,7 @@ class Character:
         scroll_codes = []
         for item in items:
             if item["type"] == "scroll":
-                scroll = Scroll(item["name"], item["flavour_name"])
+                scroll = Scroll(item["name"], item["flavour_name"], self.settings)
                 scrolls.append(scroll)
                 scroll_codes.append(scroll.scroll_code)
         print("Here are the scrolls" + ", ".join([scroll.name for scroll in scrolls]))
@@ -148,11 +155,12 @@ class Character:
         return obs
 
 
-    def __init__(self, config, name = None):
+    def __init__(self, config, settings, name = None):
         if name is not None:
             self.name = name
         else:
             self.name = config["name"]
+        self.settings = settings
         self.description = config.get("description")
         print(self.description)
         if "greeting" in config:
@@ -170,7 +178,7 @@ class Character:
             self.make_standard_attack = self.pc_make_standard_attack
             self.set_scrolls(self.items) #TODO: It would be nice to be able to add new scrolls
             print("Getting powers for today")
-            self.powers = roll_dice("1d4", MANUAL_DICE_ROLLS) + self.abilities["presence"]
+            self.powers = roll_dice("1d4", self.settings["manual_dice"] in ["pc_only", "always"]) + self.abilities["presence"]
         else:
             self.morale = config["morale"]
             self.size = config.get("size", 2)
@@ -186,10 +194,10 @@ class Character:
         self.weapons = config.get("weapons",[])
         self.set_weapons(True)
         if config["armour"] is not None:
-            self.armour = Armour(config["armour"], self)
+            self.armour = Armour(config["armour"], self, self.settings)
         else:
             self.armour = None
-        if MANUAL_DICE_ROLLS is True:
+        if self.settings["manual_dice"] is True:
             self.decision_function = self.manual_action
         else:
             self.decision_function = self.random_action
@@ -211,15 +219,15 @@ class Character:
    
     def roll_broken(self):
         logging.debug("Death roll") # Not crazy about this whole "broken" concept
-        broken_roll = roll_dice("1d4", MANUAL_DICE_ROLLS)
+        broken_roll = roll_dice("1d4", self.settings["manual_dice"] in ["always", "npc_only"])
         if broken_roll == 4:
             print(f"{self.name} is DEAD")
             self.alive = False
 
     def take_standard_damage(self,damage):
         if (self.armour is not None) and (not self.armour.dice.startswith("0d2")):
-            logging.debug("Rolling for armour")
-            armour_reduction = roll_dice(self.armour.dice, MANUAL_DICE_ROLLS)
+            logging.debug(f"Incoming damage is {damage}. Rolling for armour")
+            armour_reduction = roll_dice(self.armour.dice, self.settings["manual_dice"] in ["always"])
             logging.debug(f"{self.name} has {self.current_hp} HP before taking damage.")
             print(f"Reducing damage by {armour_reduction} due to armour")
             damage -= armour_reduction
@@ -241,7 +249,7 @@ class Character:
             print("No damage done")
 
     def make_defence_roll(self, attacker):
-        defence_roll = roll_dice("1d20", MANUAL_DICE_ROLLS)
+        defence_roll = roll_dice("1d20", self.settings["manual_dice"] in ["always", "pc_only"])
         fumble = False
         if defence_roll == 20:
             print("CRITICAL DEFENCE WIN")
@@ -249,7 +257,7 @@ class Character:
         elif defence_roll == 1:
             print("DEFENCE FUMBLE")
             fumble = True
-        defence_roll += self.defence
+        defence_roll += self.defence + self.settings["to_dodge"]
         dr = 12
         logging.debug(f"DR is {dr}, roll result is {defence_roll}")
         if defence_roll >= dr:
@@ -262,10 +270,10 @@ class Character:
     def use_scroll(self, action):
         if self.dizzy:
             logging.warning("Shouldn't try and use a scroll when dizzy")
-            self.take_standard_damage(4)
+            self.take_standard_damage(4 + self.settings["mod_damage"])
             return
         print("Rolling to hit for a scroll") #TODO: fix this
-        scroll_roll = roll_dice("1d20", MANUAL_DICE_ROLLS)
+        scroll_roll = roll_dice("1d20", self.settings["manual_dice"] in ["always", "pc_only"])
         critical = False
         multiplier = 1
         if scroll_roll == 20:
@@ -276,7 +284,7 @@ class Character:
             #self.destroy_weapon(weapon)
             print("FUMBLE") # TODO: Figure out what to do here
         # fumble rolls go here
-        scroll_roll += self.abilities["presence"]
+        scroll_roll += self.abilities["presence"] + self.settings["to_hit"]
         dr = 12
         logging.debug(f"DR is {dr}, roll result is {scroll_roll}, critical is {critical}")
         if critical or scroll_roll >= dr:
@@ -288,8 +296,8 @@ class Character:
             self.powers -= 1
         elif scroll_roll < dr:
             print(f"{self.name} failed the scroll roll and is now dizzy. Roll a d2 for HP loss")
-            damage = roll_dice("1d2", MANUAL_DICE_ROLLS)
-            self.take_standard_damage(damage)
+            damage = roll_dice("1d2", self.settings["manual_dice"] in ["always", "pc_only"])
+            self.take_standard_damage(damage + self.settings["mod_damage"])
             self.dizzy = True #TODO: How to make this only apply "for the next hour"
 
 
@@ -298,7 +306,7 @@ class Character:
         dr = weapon.dr
         multiplier = 1
         critical = False
-        attack_roll = roll_dice("1d20", MANUAL_DICE_ROLLS)
+        attack_roll = roll_dice("1d20", self.settings["manual_dice"] in ["always", "pc_only"])
         if attack_roll == 20:
             critical = True
             print("CRITICAL")
@@ -307,6 +315,7 @@ class Character:
             self.destroy_weapon(weapon)
         # fumble rolls go here
         else:
+            attack_roll += self.settings["to_hit"]
             if weapon.type == "melee":
                 attack_roll += self.abilities["strength"]
             elif weapon.type == "ranged":
@@ -314,14 +323,14 @@ class Character:
             logging.debug(f"DR is {dr}, roll result is {attack_roll}, critical is {critical}")
             if critical or attack_roll >= dr: # Presumably Crits always hit?
                 print(f"{self.name} hits! Rolling for damage.")
-                damage = roll_dice(weapon.dice, MANUAL_DICE_ROLLS)
+                damage = roll_dice(weapon.dice, self.settings["manual_dice"] in ["always", "pc_only"])
                 logging.debug(f"Damage roll is {damage}, multiplier is {multiplier}")
                 target_alive = target.take_standard_damage(multiplier * damage)
                 if target_alive and critical and target.armour is not None:
                     target.armour.reduce_tier(target,1)
             else:
                 print(f"{self.name} misses")
-            if MANUAL_DICE_ROLLS:
+            if self.settings["manual_dice"] in ["pauses"]:
                 input("--Continue--")
 
 
@@ -335,7 +344,7 @@ class Character:
             print(f"{self.name} misses.")
         else:
             print(f"{self.name} hits! Rolling for damage.")
-            damage = roll_dice(weapon.dice, MANUAL_DICE_ROLLS)
+            damage = roll_dice(weapon.dice, self.settings["manual_dice"] in ["always","npc_only"])
             logging.debug(f"Damage roll is {damage}, multiplier is {multiplier}")
             target_alive = target.take_standard_damage(multiplier * damage)
             if fumble and target_alive is True:
@@ -347,7 +356,7 @@ class Character:
         # TODO: Give NPCs placeholder defence stats to handle this better
         print(f"{self.name} (NPC) attacks {target.name} with {weapon.name}")
         multiplier = 1
-        damage = multiplier * roll_dice(weapon.dice, MANUAL_DICE_ROLLS)
+        damage = multiplier * roll_dice(weapon.dice, self.settings["manual_dice"] in ["always", "npc_only"])
         target.take_standard_damage(damage)
 
     def get_available_actions(self, others):
@@ -414,30 +423,30 @@ def poll_team(team):
 
 with open("configs/pc_sample.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
-urvarg = Character(config)
+urvarg = Character(config, settings)
 
 with open("configs/pc_sample_2.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
-rolf = Character(config)
+rolf = Character(config, settings)
 
 with open("configs/pc_sample_scroll.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
-urm = Character(config)
-urm2 = Character(config, "urm2")
+urm = Character(config, settings)
+urm2 = Character(config, settings, "urm2")
 
 with open("configs/npc_sample.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
-big_guy = Character(config)
-big_guy2 = Character(config, "Less big")
+big_guy = Character(config, settings)
+big_guy2 = Character(config, settings, "Less big")
 
 with open("configs/npc_sample_2.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
-little_guy = Character(config)
-little_guy_2 = Character(config, "The Other Little Guy")
-little_guy_3 = Character(config, "YALG")
-little_guy_4 = Character(config, "YALG2")
+little_guy = Character(config, settings)
+little_guy_2 = Character(config, settings, "The Other Little Guy")
+little_guy_3 = Character(config, settings, "YALG")
+little_guy_4 = Character(config, settings, "YALG2")
 
 
-#battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2, little_guy_3, little_guy_4], big_guy, MANUAL_DICE_ROLLS)
-battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2, little_guy_3,], big_guy, MANUAL_DICE_ROLLS)
+#battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2, little_guy_3, little_guy_4], big_guy, self.settings["manual_dice"])
+battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2, little_guy_3,], settings, big_guy)
 battle.run_battle()
