@@ -43,7 +43,7 @@ class Equipment:
         print("Roll for equipment healing")
         healing = roll_dice(self.dice, self.settings["manual_dice"] in ["always"])
         healing = multiplier * healing #TODO: decide if the mod should apply here
-        print(f"Applying {healing} scroll damage to {target.name}")
+        print(f"Applying {healing} healing to {target.name}")
         target.apply_healing(healing)
 
     def do_damage(self, target, multiplier):
@@ -68,7 +68,6 @@ class Scroll(Equipment):
         self.dice = config["dice"]
         if name not in name_to_config.keys():
             raise ValueError(f"Invalid Scroll name {self.name}")
-
         if name in ["fireball", "lightningbolt", "death"]:
             self.apply_scroll_effect = self.do_damage
         elif name == "grace":
@@ -83,10 +82,8 @@ class Scroll(Equipment):
             target_combinations = list(combinations_with_replacement(targets,2))
             action_tuples = [ (tc, self) for tc in target_combinations]
         elif self.scroll_code == 10:
-            logging.debug(f"{caster.name} is casting DEATH!")
             all = allies + enemies + [caster] # TODO: The rules say "All creatures within 30 feet" not all creatures
             action_tuples = [ (all, self) ]
-            logging.debug(action_tuples)
         elif self.scroll_code in [11, 14]:
             if self.settings["allow_attack_allies"]:
                 targets = allies + enemies + [caster]
@@ -98,8 +95,7 @@ class Scroll(Equipment):
                 n = 1
             target_combinations = list(combinations_with_replacement(targets,n))
             action_tuples = [ (tc, self) for tc in target_combinations]
-            logging.debug(action_tuples)
-        
+        #logging.debug(f"Possible scroll actions for {caster.name}: {action_tuples}")
         return action_tuples
 
     def use(self, user, targets):
@@ -129,11 +125,13 @@ class Scroll(Equipment):
             #target_alive = target.apply_damage(multiplier * damage)
             user.powers -= 1
         elif scroll_roll < dr:
-            print(f"{self.name} failed the scroll roll and is now dizzy. Roll a d2 for HP loss")
+            print(f"{user.name} failed the scroll roll and is now dizzy. Roll a d2 for HP loss")
             damage = roll_dice("1d2", self.settings["manual_dice"] in ["always", "pc_only"])
             user.apply_damage(damage + self.settings["mod_damage"])
             user.dizzy = True #TODO: How to make this only apply "for the next hour"
 
+    def __str__(self):
+        return f"A scroll object called {self.name} ({self.flavour})"
 
 class General(Equipment):
     def __init__(self, name, dice, settings):
@@ -141,18 +139,17 @@ class General(Equipment):
         self.name = name
         self.id = uuid.uuid4()
         self.name = name.lower().replace("_"," ")
-        #self.type = "healing"
         self.dice = dice
         self.count = 4 #TODO: Make this configurable
 
-    def list_actions(self, allies, enemies, caster):
+    def list_actions(self, allies, enemies, user):
         targets = allies + enemies
         if self.settings["allow_attack_allies"]:
-            targets = allies + enemies + [caster]
+            targets = allies + enemies + [user]
         else:
-            targets = allies + [caster]
+            targets = allies + [user]
         action_tuples = [ (tc, self) for tc in targets]
-        logging.debug(action_tuples)
+        #logging.debug(f"Possible equipment actions for {user.name}: {action_tuples}")
         return action_tuples
 
     def use(self, target):

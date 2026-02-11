@@ -46,7 +46,6 @@ class Team:
                 break
         if npcs_passed:
             logging.debug("NPCs passed morale_test_check_one_third")
-     
 
     def morale_test_check_leader_dead(self):
         # Only call this when the leader is dead
@@ -73,7 +72,9 @@ class Team:
             logging.debug("Half elim test has already been done this battle")
         if not self.one_third:
             self.morale_test_check_one_third()
+        else:
             logging.debug("One third test has already been done this battle")
         if not self.leader_killed:
             self.morale_test_check_leader_dead()
+        else:
             logging.debug("Leader dead test has already been done this battle")
