@@ -45,7 +45,7 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
         for char in on_team.chars:
             allies = [x for x in on_team.chars if x != char and x.alive is True]
             if char.alive:
-                target = char.start_turn(allies, off_team.chars)
+                target = char.take_turn(allies, off_team.chars)
                 i_individual_turns_taken += 1
                 if target is not None:
                     on_team.last_target = target
@@ -61,11 +61,13 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
                     break
                     
         i_team_turns_taken += 1
-        if 0 == on_team.update_team():
+        if 0 == on_team.update_team() and 0 == off_team.update_team():
+            print("It's a draw")
+        elif 0 == len(on_team.chars):
             self.battle_over = True
             print(f"The other team ({off_team.name}) won. Congrats to the survivor(s): {','.join([char.name for char in off_team.chars])}")
             return off_team, i_team_turns_taken, i_individual_turns_taken
-        if 0 == off_team.update_team():
+        elif 0 == len(off_team.chars):
             self.battle_over = True
             print(f"Current round team ({on_team.name}) won. Congrats to the survivor(s): {', '.join([char.name for char in on_team.chars])}")
             return on_team, i_team_turns_taken, i_individual_turns_taken
