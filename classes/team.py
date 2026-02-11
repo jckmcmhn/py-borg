@@ -1,7 +1,6 @@
 from classes import roll_dice
 import logging
 
-
 class Team:
     def __init__(self, characters, name, settings, leader = None):
         self.chars_starting = characters

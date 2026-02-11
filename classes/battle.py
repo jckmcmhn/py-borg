@@ -3,17 +3,6 @@ from classes import roll_dice
 from classes.team import Team
 
 class Battle: # Is this one class too many? Probably, but I've got class fever over here
-    def initiative(self):
-        print("Roll for initiative")
-        initiative_roll = roll_dice("1d6", self.settings["manual_dice"] in ["always", "pc_only"])
-        print(f"Initiative roll is {initiative_roll}")
-        if initiative_roll <= 3:
-            return False # PCs not going first
-        else:
-            return True # PCs going first
-        # TODO: Individual initiative may not be RAW
-
-    
     def __init__(self, pcs, npcs, settings, leader = None):
         self.settings = settings
         shuffle(pcs)
@@ -38,6 +27,16 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
             self.pc_team = self.second_team
 
         self.battle_over = False
+
+    def initiative(self):
+        print("Roll for initiative")
+        initiative_roll = roll_dice("1d6", self.settings["manual_dice"] in ["always", "pc_only"])
+        print(f"Initiative roll is {initiative_roll}")
+        if initiative_roll <= 3:
+            return False # PCs not going first
+        else:
+            return True # PCs going first
+        # TODO: Individual initiative may not be RAW
 
     def run_round_side(self, on_team, off_team):
         print(f"The team of {', '.join([ char.name for char in on_team.chars])} is taking their go") #TODO: Won't read right if only one member left
