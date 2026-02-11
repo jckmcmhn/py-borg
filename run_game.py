@@ -42,7 +42,14 @@ print(f"MANUAL_DICE_ROLLS is {MANUAL_DICE_ROLLS}\n\n")
 print(f"ALLOW_ATTACK_ALLIES is {ALLOW_ATTACK_ALLIES}\n\n")
 print("Enter 0 to skip manual dice rolls if needed")
 
-
+def poll_team(team):
+    team_left = False
+    for char in team.chars:
+        if char.alive:
+            team_left = True
+            print(f"There's someone {char.name} left on {team.name}")
+            break
+    return team_left
 
 with open("configs/pc_sample.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)

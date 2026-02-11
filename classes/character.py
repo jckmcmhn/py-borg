@@ -1,8 +1,7 @@
 from random import choice
 import logging
 from classes import roll_dice
-from classes.armour import Armour
-from classes.equipment import Scroll, General, Weapon
+from classes.equipment import Scroll, General, Weapon, Armour
 
 class Character:
     def __init__(self, config, settings, name = None):
@@ -27,7 +26,7 @@ class Character:
             self.init_weapons = config["weapons"]
             self.make_standard_attack = self.pc_attack_with_weapon
             self.set_scrolls(self.items) #TODO: It would be nice to be able to add new scrolls
-            self.set_equipment(self.items)
+            self.set_general_equipment(self.items)
             print("Getting powers for today")
             self.powers = roll_dice("1d4", self.settings["manual_dice"] in ["pc_only", "always"]) + self.abilities["presence"]
         else:
@@ -116,7 +115,7 @@ class Character:
         self.scrolls = scrolls
         self.scroll_codes = scroll_codes
 
-    def set_equipment(self, items):
+    def set_general_equipment(self, items):
         print(items)
         equipment = []
         for item in items:
