@@ -208,7 +208,7 @@ class Character:
             logging.debug(f"apply_damage: Incoming damage is {damage}. Rolling for armour")
             armour_reduction = roll_dice(self.armour.dice, self.settings["manual_dice"] in ["always"])
             logging.debug(f"apply_damage: {self.name} has {self.current_hp} HP before taking damage.")
-            print(f"Reducing damage by {armour_reduction} due to armour")
+            logging.info(f"Reducing damage by {armour_reduction} due to armour")
             damage -= armour_reduction
         else:
             print(f"{self.name} has no armour")
@@ -257,9 +257,10 @@ class Character:
 
     def use_equipment(self, action):
         equipment = action[1]
-        target = action[0]
-        logging.debug(f"use_equipment: {self.name} is using {equipment.name} on {action[0].name}")
-        equipment.use(target)
+        targets = action[0]
+        for target in targets:
+            logging.debug(f"use_equipment: {self.name} is using {equipment.name} on {target.name}")
+            equipment.use(target)
         equipment.count -= 1
         print(f"There are {equipment.count} {equipment.name}s left")
 
@@ -323,6 +324,23 @@ class Character:
         multiplier = 1
         damage = multiplier * roll_dice(weapon.dice, self.settings["manual_dice"] in ["always", "npc_only"])
         target.apply_damage(damage)
+    def random_action(self, actions):
+        return choice(actions)
+    
+    def manual_action(self, actions):
+        print("\n\nHere are the available options\n")
+        for i, action in enumerate(actions):
+            i += 1
+            print(f"Option {i}: ")
+            targets = action[0]
+            tool = action[1]
+            if tool.name.lower() == "death": #TODO: this is clumsy
+                print(f"Cast DEATH which will hit {', '.join([a.name for a in targets])}")
+            else:
+                #print(f"Use {action[1].name} on {action[0].name}")
+                print(f"Use {tool.name} on {', '.join([a.name for a in targets])}")
+        decision = int(input("\nWhich option? Just type the number: "))
+        return actions[decision - 1]
 
     def npc_calculate_vendettas(self, attacker, damage):
         print("Grievancetron")
@@ -338,24 +356,26 @@ class Character:
         else:
             targets = enemies
         for other in targets:
-            weapon_actions += [ (other, weapon) for weapon in [self.primary_weapon, self.secondary_weapon] ]
+            for weapon in [self.primary_weapon, self.secondary_weapon]:
+                other_weapon = ((other,), weapon)
+                weapon_actions.append(other_weapon)
         if self.is_pc is True:
             if self.powers > 1 and (self.scrolls is not None):
                 for scroll in self.scrolls:
-                    scroll_actions.append(scroll.list_actions(allies, enemies, self))
+                    targets, _ = scroll.list_actions(allies, enemies, self)
+                    for target in targets:
+                        scroll_actions.append((target, scroll))
+                    #scroll_actions.append((targets, scroll))
             if self.equipment is not None:
                 for item in self.equipment:
                     if item.count > 0: #Pretty embarassed not to remember this sooner, Urm was on -13 medicine chests
-                        equipment_actions = item.list_actions(allies, enemies, self)
-        final_list = []
-        for sublist in scroll_actions + weapon_actions + equipment_actions:
-            if isinstance(sublist,list):
-                for item in sublist:
-                    final_list.append(item)
-            else:
-                final_list.append(sublist)
-        #logging.debug(f"{self.name}'s list of actions: {final_list}")
-        return final_list
+                        targets, _ = item.list_actions(allies, enemies, self)
+                        for target in targets:
+                            equipment_actions.append((target, item))
+                        #equipment_actions.append((targets, item))
+        list = weapon_actions + scroll_actions + equipment_actions
+        logging.debug(f"{self.name}'s list of actions: {list}")
+        return list
     
     def take_turn(self, allies, enemies):
         print("------------------------------")
@@ -371,27 +391,23 @@ class Character:
             logging.debug(f"take_turn: Getting list of available actions for {self.name}")
             actions = self.get_available_actions(allies, enemies)
             action = self.decision_function(actions)
-            if isinstance(action, list):
-                logging.debug("take_turn: Action is a list of sub-actions")
-                for subaction in action:
-                    if isinstance(subaction[1], General):
-                        self.use_equipment(action)
-                    else:
-                        subaction[1].use(self, subaction[0])
-            elif isinstance(action[1], Scroll):
-                action[1].use(self, action[0])
-            elif isinstance(action[1], General):
+            print(f"{self.name} is taking this action: {action[1]} against {', '.join([target.name for target in action[0]])}")
+            if isinstance(action[1], General):
                 print("Using a non-scroll action")
                 self.use_equipment(action)
-            else:
-                if action[0].is_pc and self.is_pc: # this might be the usecase for is_ally? #TODO: these checks should also be applied to scrolls and general above
-                    logging.warning(f"take_turn: {self.name} is attacking their ally {action[0].name}")
+            elif isinstance(action[1], Scroll):
+                action[1].use(self, action[0])
+            elif isinstance(action[1], Weapon):
+                target = action[0][0] # For weapons, there should only be one target
+                if target.is_pc and self.is_pc: # this might be the usecase for is_ally? #TODO: these checks should also be applied to scrolls and general above
+                    logging.warning(f"take_turn: {self.name} is attacking their ally {target.name}")
                     self.make_standard_attack(action[0], action[1])
-                elif (not action[0].is_pc) and (not self.is_pc):
-                    logging.warning(f"take_turn: {self.name} is attacking their ally {action[0].name}")
-                    self.npc_attack_with_weapon_on_npc(action[0], action[1])
+                elif (not target.is_pc) and (not self.is_pc):
+                    logging.warning(f"take_turn: {self.name} is attacking their ally {target.name}")
+                    self.npc_attack_with_weapon_on_npc(target, action[1])
                 else:
-                    self.make_standard_attack(action[0], action[1])
+                    logging.info(f"take_turn: {self.name} is attacking {target.name}")
+                    self.make_standard_attack(target, action[1])
                 self.last_target = action[0]
             print("------------------------------")
         self.actions_this_turn = 0
