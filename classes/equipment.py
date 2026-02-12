@@ -197,7 +197,7 @@ class Weapon(Equipment): #TODO: could weapon use things that are defined in the 
     def __str__(self):
         return "It's a %s called %s it deals %s" % (self.category, self.name, self.damage)
     
-class Armour(Weapon):
+class Armour(Equipment):
     def __init__(self, config, wearer, settings):
         self.settings = settings
         self.type = config["type"]
