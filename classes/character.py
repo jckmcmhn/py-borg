@@ -291,6 +291,8 @@ class Character:
                 target_alive = target.apply_damage(multiplier * damage)
                 if target_alive and critical and target.armour is not None:
                     target.armour.reduce_tier(target,1)
+                if target_alive:
+                    target.npc_calculate_vendettas(self,damage)
             else:
                 print(f"{self.name} misses")
             if self.settings["manual_dice"] in ["pauses"]:
@@ -298,7 +300,7 @@ class Character:
 
 
     def npc_attack_with_weapon(self, target, weapon):
-        print(f"{self.name} (NPC) attacks {target.name} with {weapon.name}")
+        print(f"{self.name} (NPC) attacks {target.name} with {weapon.name}. Make defence roll.")
         multiplier = 1
         missed, fumble = target.make_defence_roll(self)
         if fumble:
@@ -321,6 +323,9 @@ class Character:
         multiplier = 1
         damage = multiplier * roll_dice(weapon.dice, self.settings["manual_dice"] in ["always", "npc_only"])
         target.apply_damage(damage)
+
+    def npc_calculate_vendettas(self, attacker, damage):
+        print("Grievancetron")
 
     def get_available_actions(self, allies, enemies):
         #TODO: Need to filter based on ALLOW_ATTACK_ALLIES
@@ -360,6 +365,8 @@ class Character:
             print("------------------------------")
             return None
         self.actions_this_turn += 1
+        if self.actions_this_turn > 1:
+            logging.debug(f"{self.name} has {self.actions_this_turn} actions to take this turn")
         for _ in range(0, self.actions_this_turn):
             logging.debug(f"take_turn: Getting list of available actions for {self.name}")
             actions = self.get_available_actions(allies, enemies)
@@ -387,7 +394,7 @@ class Character:
                     self.make_standard_attack(action[0], action[1])
                 self.last_target = action[0]
             print("------------------------------")
-            return action[0]
+        self.actions_this_turn = 0
         # TODO: Check for status effects
         # TODO: Check if dead after status effects
         # Log results of action

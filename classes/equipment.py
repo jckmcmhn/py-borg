@@ -113,7 +113,14 @@ class Scroll(Equipment):
         if user.dizzy:
             logging.warning("Shouldn't try and use a scroll when dizzy")
             user.apply_damage(4 + self.settings["mod_damage"]) #TODO: This shouldn't be as hardcoded
-            return
+            return False
+        if user.primary_weapon.name.lower().startswith("zwei") or (user.armour.tier in [3, 4]):
+            logging.warning("Trying to use a scroll while wielding a zweihand weapon or wearing heavy/medium armour guarantees it will fail")
+            print(f"{user.name} failed the scroll roll. Roll a d2 for HP loss")
+            damage = roll_dice("1d2", self.settings["manual_dice"] in ["always", "pc_only"])
+            user.apply_damage(damage + self.settings["mod_damage"])
+            user.dizzy = True #TODO: How to make this only apply "for the next hour"
+            return False
         print(f"Rolling to hit for a scroll ({self.name})")
         scroll_roll = roll_dice("1d20", self.settings["manual_dice"] in ["always", "pc_only"])
         critical = False
@@ -141,11 +148,13 @@ class Scroll(Equipment):
                 self.apply_scroll_effect(target, multiplier)
             #target_alive = target.apply_damage(multiplier * damage)
             user.powers -= 1
+            return True
         elif scroll_roll < dr:
             print(f"{user.name} failed the scroll roll and is now dizzy. Roll a d2 for HP loss")
             damage = roll_dice("1d2", self.settings["manual_dice"] in ["always", "pc_only"])
             user.apply_damage(damage + self.settings["mod_damage"])
             user.dizzy = True #TODO: How to make this only apply "for the next hour"
+            return False
 
     def __str__(self):
         return f"A scroll object called {self.name} ({self.flavour})"
@@ -213,14 +222,16 @@ class Armour(Weapon):
     def reduce_tier(self, wearer, tier_reduction):
         # TODO: introduce tiers to this properly
         # Per the rules, if armour is damanged, the penalties to abilities are not modified. Thankfully...
-        print(f"Reducing {wearer.name}'s armour by a tier of {tier_reduction}")
+        print(f"Reducing {wearer.name}'s armour (currently tier {self.tier}) by a tier of {tier_reduction}")
         if self.dice == "1d2":
             print("Armour has been destroyed")
-            wearer.armour = None #TODO: Have an unarmoured state
+            self.armour = None #TODO: Have an unarmoured state
         elif self.dice == "1d4":
             self.dice = "1d2"
+            self.tier = 2
         elif self.dice == "1d6":
             self.dice = "1d4"
+            self.tier = 3
 
     def __str__(self):
         return "It's a %s armour, it provides %s damage reduction" % (self.type, self.dice)
