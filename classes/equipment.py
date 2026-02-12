@@ -15,11 +15,13 @@ name_to_config = {
         "dice": "1d8",
         "scroll_code": 1,
         "type": "offensive",
+        "n": "1d2"
     },
     "lightningbolt": {
         "dice": "1d6",
         "scroll_code": 6,
-        "type": "offensive"
+        "type": "offensive",
+        "n": "1d2"
     },
     "death": {
         "dice": "4d10",
@@ -29,26 +31,28 @@ name_to_config = {
     "grace": {
         "dice": "1d10",
         "scroll_code": 11,
-        "type": "healing"
+        "type": "healing",
+        "n": "1d2"
     },
     "aegis": {
         "dice": "2d6",
         "scroll_code": 14,
-        "type": "healing"
+        "type": "healing",
+        "n": "1d1"
     },
 }
 
 class Equipment:
     def heal(self,target, multiplier):
-        print("Roll for equipment healing")
-        healing = roll_dice(self.dice, self.settings["manual_dice"] in ["always"])
+        print(f"Roll for {self.name} healing")
+        healing = roll_dice(self.dice, self.settings["manual_dice"] in ["always", "pc_only"])
         healing = multiplier * healing #TODO: decide if the mod should apply here
         print(f"Applying {healing} healing to {target.name}")
         target.apply_healing(healing)
 
     def do_damage(self, target, multiplier):
-        print("Roll for equipment damage")
-        damage = roll_dice(self.dice, self.settings["manual_dice"] in ["always"])
+        print(f"Roll for {self.name} damage")
+        damage = roll_dice(self.dice, self.settings["manual_dice"] in ["always", "pc_only"])
         damage += self.settings["mod_damage"]
         damage = multiplier * damage
         print(f"Inflicting {damage} scroll damage to {target.name}")
@@ -66,6 +70,9 @@ class Scroll(Equipment):
         self.type = config["type"]
         self.scroll_code = config["scroll_code"]
         self.dice = config["dice"]
+        n = config.get("n", "1d10000000") #TODO: This should just be infinite
+        self.max_n = int(n.split("d")[1])
+        self.n = n
         if name not in name_to_config.keys():
             raise ValueError(f"Invalid Scroll name {self.name}")
         if name in ["fireball", "lightningbolt", "death"]:
@@ -79,7 +86,11 @@ class Scroll(Equipment):
                 targets = allies + enemies
             else:
                 targets = enemies
-            target_combinations = list(combinations_with_replacement(targets,2))
+            #target_combinations = []
+            #for i in range(int(self.n)):
+            #    i_combinations = list(combinations_with_replacement(targets,i + 1))
+            #    target_combinations += i_combinations
+            target_combinations = list(combinations_with_replacement(targets, self.max_n))
             action_tuples = [ (tc, self) for tc in target_combinations]
         elif self.scroll_code == 10:
             all = allies + enemies + [caster] # TODO: The rules say "All creatures within 30 feet" not all creatures
@@ -89,11 +100,11 @@ class Scroll(Equipment):
                 targets = allies + enemies + [caster]
             else:
                 targets = allies + [caster]
-            if self.scroll_code == 11:
-                n = 2
-            else:
-                n = 1
-            target_combinations = list(combinations_with_replacement(targets,n))
+            #target_combinations = []
+            #for i in range(int(self.n)):
+            #    i_combinations = list(combinations_with_replacement(targets,i + 1))
+            #    target_combinations += i_combinations
+            target_combinations = list(combinations_with_replacement(targets, self.max_n))
             action_tuples = [ (tc, self) for tc in target_combinations]
         #logging.debug(f"Possible scroll actions for {caster.name}: {action_tuples}")
         return action_tuples
@@ -103,7 +114,7 @@ class Scroll(Equipment):
             logging.warning("Shouldn't try and use a scroll when dizzy")
             user.apply_damage(4 + self.settings["mod_damage"]) #TODO: This shouldn't be as hardcoded
             return
-        print("Rolling to hit for a scroll") #TODO: fix this
+        print(f"Rolling to hit for a scroll ({self.name})")
         scroll_roll = roll_dice("1d20", self.settings["manual_dice"] in ["always", "pc_only"])
         critical = False
         multiplier = 1
@@ -118,7 +129,13 @@ class Scroll(Equipment):
         dr = 12
         logging.debug(f"DR is {dr}, roll result is {scroll_roll}, critical is {critical}")
         if critical or scroll_roll >= dr:
-            for target in targets:
+            print(f"Rolling to see how many targets the {self.name} scroll will have")
+            n_targets = roll_dice(self.n, self.settings["manual_dice"] in ["always", "pc_only"])
+            if n_targets < len(targets):
+                print(f"The number of targets rolled for this scroll was less than the maximum. Only the first {n_targets} will be carried out")
+            elif n_targets == len(targets):
+                print(f"Rolled {n_targets}, the max number of targets for this scroll")
+            for target in targets[:n_targets]:
                 if target.alive is False:
                     logging.warning("Attacking someone who is already dead") #TODO: Fix this
                 self.apply_scroll_effect(target, multiplier)

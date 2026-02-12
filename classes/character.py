@@ -48,9 +48,11 @@ class Character:
             self.armour = Armour(config["armour"], self, self.settings)
         else:
             self.armour = None
-        if self.settings["manual_dice"] in ["always", "pc_only"]:
+        if self.settings["manual_dice"] == "always":
             self.decision_function = self.manual_action
-        elif self.is_pc and (self.settings["manual_dice"] == "pc_decisions"):
+        elif self.is_pc and (self.settings["manual_dice"] in ["pc_only",  "pc_decisions"]):
+            self.decision_function = self.manual_action
+        elif (not self.is_pc) and (self.settings["manual_dice"] == "npc_only"):
             self.decision_function = self.manual_action
         else:
             self.decision_function = self.random_action
@@ -140,11 +142,11 @@ class Character:
             i += 1
             print(f"Option {i}: ")
             if action[1].name.lower() == "death": #TODO: this is clumsy
-                print(f"Cast DEATH which will hit {', '.join([a.name for a in action[0]])}")
+                print(f"Cast DEATH which will hit all creatures\n")
             elif isinstance(action[0],tuple):
-                print(f"Use {action[1].name} on {', '.join([a.name for a in action[0]])}")
+                print(f"Use {action[1].name} on {', '.join([target.name for target in action[0]])}.\nHow many of these targets are affected will depend on a subsequent {action[1].n} roll\n")
             else:
-                print(f"Use {action[1].name} on {action[0].name}")
+                print(f"Use {action[1].name} on {action[0].name}\n")
         decision = int(input("\nWhich option? Just type the number: "))
         return actions[decision - 1]
 
@@ -388,11 +390,7 @@ class Character:
             return action[0]
         # TODO: Check for status effects
         # TODO: Check if dead after status effects
-        # Get actions
-        # Decide on action
-        # Take action
         # Log results of action
-        # Check if dead before ending turn
 
     def __str__(self):
         return f"A character called {self.name}. {self.description}"
