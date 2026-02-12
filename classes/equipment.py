@@ -40,14 +40,14 @@ name_to_config = {
 
 class Equipment:
     def heal(self,target, multiplier):
-        print("Roll for equipment healing")
+        logging.debug("Roll for equipment healing")
         healing = roll_dice(self.dice, self.settings["manual_dice"] in ["always"])
         healing = multiplier * healing #TODO: decide if the mod should apply here
         print(f"Applying {healing} healing to {target.name}")
         target.apply_healing(healing)
 
     def do_damage(self, target, multiplier):
-        print("Roll for equipment damage")
+        logging.debug("Roll for equipment damage")
         damage = roll_dice(self.dice, self.settings["manual_dice"] in ["always"])
         damage += self.settings["mod_damage"]
         damage = multiplier * damage
@@ -75,15 +75,15 @@ class Scroll(Equipment):
 
     def list_actions(self, allies, enemies, caster):
         if self.scroll_code in [1,6]: # Fireball Lightning
+            n = 2
             if self.settings["allow_attack_allies"]:
                 targets = allies + enemies
             else:
                 targets = enemies
             target_combinations = list(combinations_with_replacement(targets,2))
-            action_tuples = [ (tc, self) for tc in target_combinations]
         elif self.scroll_code == 10:
             all = allies + enemies + [caster] # TODO: The rules say "All creatures within 30 feet" not all creatures
-            action_tuples = [ (all, self) ]
+            target_combinations = [tuple(all)]
         elif self.scroll_code in [11, 14]:
             if self.settings["allow_attack_allies"]:
                 targets = allies + enemies + [caster]
@@ -94,16 +94,15 @@ class Scroll(Equipment):
             else:
                 n = 1
             target_combinations = list(combinations_with_replacement(targets,n))
-            action_tuples = [ (tc, self) for tc in target_combinations]
         #logging.debug(f"Possible scroll actions for {caster.name}: {action_tuples}")
-        return action_tuples
+        return target_combinations, self
 
     def use(self, user, targets):
         if user.dizzy:
             logging.warning("Shouldn't try and use a scroll when dizzy")
             user.apply_damage(4 + self.settings["mod_damage"]) #TODO: This shouldn't be as hardcoded
             return
-        print("Rolling to hit for a scroll") #TODO: fix this
+        print(f"{user.name} is rolling to hit for a scroll ({self.name}). Targets are {', '.join([target.name for target in targets])}")
         scroll_roll = roll_dice("1d20", self.settings["manual_dice"] in ["always", "pc_only"])
         critical = False
         multiplier = 1
@@ -148,9 +147,10 @@ class General(Equipment):
             targets = allies + enemies + [user]
         else:
             targets = allies + [user]
-        action_tuples = [ (tc, self) for tc in targets]
+        n = 1 #TODO: confirm this
+        target_combinations = list(combinations_with_replacement(targets,n))
+        return target_combinations, self
         #logging.debug(f"Possible equipment actions for {user.name}: {action_tuples}")
-        return action_tuples
 
     def use(self, target):
         print(f"Applying {self.name} to {target.name}")
@@ -169,7 +169,7 @@ class Weapon(Equipment): #TODO: could weapon use things that are defined in the 
         self.id = uuid.uuid4()        
 
     def __str__(self):
-        return "It's a %s called %s it deals %s" % (self.category, self.name, self.damage)
+        return "It's a %s called %s it deals %s" % (self.category, self.name, self.dice)
     
 class Armour(Weapon):
     def __init__(self, config, wearer, settings):
