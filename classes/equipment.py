@@ -77,7 +77,7 @@ class Scroll(Equipment):
             raise ValueError(f"Invalid Scroll name {self.name}")
         if name in ["fireball", "lightningbolt", "death"]:
             self.apply_scroll_effect = self.do_damage
-        elif name == "grace":
+        elif name in ["aegis", "grace"]:
             self.apply_scroll_effect = self.heal
 
     def list_actions(self, allies, enemies, caster):
@@ -87,10 +87,6 @@ class Scroll(Equipment):
                 targets = allies + enemies
             else:
                 targets = enemies
-            #target_combinations = []
-            #for i in range(int(self.n)):
-            #    i_combinations = list(combinations_with_replacement(targets,i + 1))
-            #    target_combinations += i_combinations
             target_combinations = list(combinations_with_replacement(targets, self.max_n))
             action_tuples = [ (tc, self) for tc in target_combinations]
         elif self.scroll_code == 10:
@@ -101,10 +97,6 @@ class Scroll(Equipment):
                 targets = allies + enemies + [caster]
             else:
                 targets = allies + [caster]
-            #target_combinations = []
-            #for i in range(int(self.n)):
-            #    i_combinations = list(combinations_with_replacement(targets,i + 1))
-            #    target_combinations += i_combinations
             target_combinations = list(combinations_with_replacement(targets, self.max_n))
             action_tuples = [ (tc, self) for tc in target_combinations]
         #logging.debug(f"Possible scroll actions for {caster.name}: {action_tuples}")
@@ -122,6 +114,8 @@ class Scroll(Equipment):
             user.apply_damage(damage + self.settings["mod_damage"])
             user.dizzy = True #TODO: How to make this only apply "for the next hour"
             return False
+        if self.scroll_code == 10 and user.current_hp <=20:
+            logging.warning("Casting Death with HP of 20 or less will most likely kill the caster as well")
         print(f"Rolling to hit for a scroll ({self.name})")
         scroll_roll = roll_dice("1d20", self.settings["manual_dice"] in ["always", "pc_only"])
         critical = False
@@ -199,7 +193,7 @@ class Weapon(Equipment): #TODO: could weapon use things that are defined in the 
     def __str__(self):
         return "It's a %s called %s it deals %s" % (self.category, self.name, self.dice)
     
-class Armour(Weapon):
+class Armour(Equipment):
     def __init__(self, config, wearer, settings):
         self.settings = settings
         self.type = config["type"]
