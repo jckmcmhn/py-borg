@@ -82,6 +82,7 @@ class Scroll(Equipment):
 
     def list_actions(self, allies, enemies, caster):
         if self.scroll_code in [1,6]: # Fireball Lightning
+            n = 2
             if self.settings["allow_attack_allies"]:
                 targets = allies + enemies
             else:
@@ -90,7 +91,7 @@ class Scroll(Equipment):
             action_tuples = [ (tc, self) for tc in target_combinations]
         elif self.scroll_code == 10:
             all = allies + enemies + [caster] # TODO: The rules say "All creatures within 30 feet" not all creatures
-            action_tuples = [ (all, self) ]
+            target_combinations = [tuple(all)]
         elif self.scroll_code in [11, 14]:
             if self.settings["allow_attack_allies"]:
                 targets = allies + enemies + [caster]
@@ -99,7 +100,7 @@ class Scroll(Equipment):
             target_combinations = list(combinations_with_replacement(targets, self.max_n))
             action_tuples = [ (tc, self) for tc in target_combinations]
         #logging.debug(f"Possible scroll actions for {caster.name}: {action_tuples}")
-        return action_tuples
+        return target_combinations, self
 
     def use(self, user, targets):
         if user.dizzy:
@@ -168,9 +169,10 @@ class General(Equipment):
             targets = allies + enemies + [user]
         else:
             targets = allies + [user]
-        action_tuples = [ (tc, self) for tc in targets]
+        n = 1 #TODO: confirm this
+        target_combinations = list(combinations_with_replacement(targets,n))
+        return target_combinations, self
         #logging.debug(f"Possible equipment actions for {user.name}: {action_tuples}")
-        return action_tuples
 
     def use(self, target):
         print(f"Applying {self.name} to {target.name}")
@@ -189,7 +191,7 @@ class Weapon(Equipment): #TODO: could weapon use things that are defined in the 
         self.id = uuid.uuid4()        
 
     def __str__(self):
-        return "It's a %s called %s it deals %s" % (self.category, self.name, self.damage)
+        return "It's a %s called %s it deals %s" % (self.category, self.name, self.dice)
     
 class Armour(Equipment):
     def __init__(self, config, wearer, settings):
