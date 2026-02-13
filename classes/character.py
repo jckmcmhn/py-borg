@@ -1,4 +1,4 @@
-from random import choice
+from random import choice, random
 import logging
 from classes import roll_dice
 from classes.equipment import Scroll, General, Weapon, Armour
@@ -29,11 +29,17 @@ class Character:
             if len(self.scrolls): #TODO: What if a character gets a scroll in future. Problem for another time
                 print("Getting powers for today")
                 self.powers = roll_dice("1d4", self.settings["manual_dice"] in ["pc_only", "always"]) + self.abilities["presence"]
+            else:
+                self.powers = 0
             self.set_general_equipment(self.items)
         else:
             self.morale = config["morale"]
             self.size = config.get("size", 2)
             self.make_standard_attack = self.npc_attack_with_weapon
+            self.most_damage_taken = 0
+            self.most_damage_taken_from = None
+            self.enemy_for_life = None
+            self.last_hit_enemy = None
         pronouns = config.get("pronouns", "they/them/their")
         pronouns_split = pronouns.split("/")
         if len(pronouns_split) != 3:
@@ -54,6 +60,8 @@ class Character:
             self.decision_function = self.manual_action
         elif (not self.is_pc) and (self.settings["manual_dice"] == "npc_only"):
             self.decision_function = self.manual_action
+        elif (not self.is_pc):
+            self.decision_function = self.rules_based_action
         else:
             self.decision_function = self.random_action
         self.dizzy = False # TODO: If true: During this time, Powers will always fail in the worst possible way.
@@ -136,6 +144,34 @@ class Character:
     def random_action(self, actions):
         return choice(actions)
     
+    def rules_based_action(self, actions): # TODO: Make a hard mode version of this that knows more about enemy states
+        if self.enemy_for_life is not None:
+           if not self.enemy_for_life.alive:
+                print(f"{self.name} gloats over the body of {self.possessive} fallen enemy for life {self.enemy_for_life.name}.\n'That's what you get for messing with {self.name}' {self.subject} sneers")
+                self.enemy_for_life = None # TODO: This does mean an enemy can have more than one enemy for life per life, which doesn't seem right
+        if self.most_damage_taken_from is not None:
+            if not self.most_damage_taken_from.alive:
+                self.most_damage_taken_from = None
+        if self.last_hit_enemy is not None:
+            if not self.most_damage_taken_from.alive:
+                self.most_damage_taken_from = None
+        if self.enemy_for_life is not None:
+            print(f"{self.name} is attacking {self.possessive} enemy for life {self.enemy_for_life.name}")
+            return (self.enemy_for_life, self.primary_weapon)
+        elif self.most_damage_taken_from is not None:
+            print(f"{self.name} is attacking the enemy who has done the most damage to {self.third}: {self.most_damage_taken_from.name}")
+            return (self.most_damage_taken_from, self.primary_weapon)
+        elif self.last_hit_enemy is not None:
+            if random() < 0.7:
+                print(f"{self.name} is attacking the enemy they last hit: {self.last_hit_enemy.name}")
+                return (self.last_hit_enemy, self.primary_weapon)
+            else:
+                print(f"{self.name} could attack the enemy they last hit: {self.last_hit_enemy.name} but has decided not to")
+                return choice(actions)
+        else:
+            print(f"{self.name} is picking a target at random")
+            return choice(actions)
+
     def manual_action(self, actions):
         print("\n\nHere are the available options\n")
         for i, action in enumerate(actions):
@@ -223,6 +259,8 @@ class Character:
             else:
                 print(f"{self.name} is on {self.current_hp}")
                 self.alive = True
+            #if self.alive:
+            #    self.npc_calculate_vendettas(attacker,damage)
             return self.alive
         else:
             print("No damage done")
@@ -230,6 +268,8 @@ class Character:
     def apply_healing(self,heal):
         if heal > 0:
             self.current_hp += heal
+            if self.current_hp > self.max_hp:
+                logging.warning(f"{self.name}'s HP after healing would be greater than {self.possessive} max HP. The HP above max HP will be ignored.")
             self.current_hp = min(self.current_hp, self.max_hp)
             print(f"{self.name} healed {heal} damage and is {self.current_hp} HP now")
             return self.alive
@@ -291,12 +331,10 @@ class Character:
                 target_alive = target.apply_damage(multiplier * damage)
                 if target_alive and critical and target.armour is not None:
                     target.armour.reduce_tier(target,1)
-                if target_alive:
-                    target.npc_calculate_vendettas(self,damage)
+                if (not target.is_pc) and target_alive:
+                    target.npc_calculate_vendettas(self,damage) # TODO: This is the pre-armour reduction damage
             else:
                 print(f"{self.name} misses")
-            if self.settings["manual_dice"] in ["pauses"]:
-                input("--Continue--")
 
 
     def npc_attack_with_weapon(self, target, weapon):
@@ -312,6 +350,8 @@ class Character:
             damage = roll_dice(weapon.dice, self.settings["manual_dice"] in ["always","npc_only"])
             logging.debug(f"npc_attack_with_weapon: Damage roll is {damage}, multiplier is {multiplier}")
             target_alive = target.apply_damage(multiplier * damage)
+            if target_alive and damage > 2: #TODO damage of 1 would get absorbed by armour, as would 2 probably
+                self.last_hit_enemy = target
             if fumble and target_alive is True:
                 print(f"{target.name}'s armour is damaged")
                 target.armour.reduce_tier(target, 1)
@@ -325,10 +365,14 @@ class Character:
         target.apply_damage(damage)
 
     def npc_calculate_vendettas(self, attacker, damage):
-        print("Grievancetron")
+        logging.debug(f"Let's figure out {self.name}'s grievances!")
+        if damage > self.most_damage_taken:
+            self.most_damage_taken_from = attacker
+            if self.enemy_for_life is None and 0.5 < (damage / self.max_hp):
+                print(f"{self.name} lets out a mighty roar. {self.subject.capitalize()} points at {attacker.name} and declares 'You just made an enemy for life bucko!'")
+                self.enemy_for_life = attacker
 
     def get_available_actions(self, allies, enemies):
-        #TODO: Need to filter based on ALLOW_ATTACK_ALLIES
         weapon_actions = []
         scroll_actions = []
         equipment_actions = []
@@ -371,18 +415,12 @@ class Character:
             logging.debug(f"take_turn: Getting list of available actions for {self.name}")
             actions = self.get_available_actions(allies, enemies)
             action = self.decision_function(actions)
-            if isinstance(action, list):
-                logging.debug("take_turn: Action is a list of sub-actions")
-                for subaction in action:
-                    if isinstance(subaction[1], General):
-                        self.use_equipment(action)
-                    else:
-                        subaction[1].use(self, subaction[0])
-            elif isinstance(action[1], Scroll):
+            if isinstance(action[1], Scroll):
                 action[1].use(self, action[0])
             elif isinstance(action[1], General):
                 print("Using a non-scroll action")
                 self.use_equipment(action)
+            #TODO: Check if target of spell is an ally here
             else:
                 if action[0].is_pc and self.is_pc: # this might be the usecase for is_ally? #TODO: these checks should also be applied to scrolls and general above
                     logging.warning(f"take_turn: {self.name} is attacking their ally {action[0].name}")
@@ -398,6 +436,8 @@ class Character:
         # TODO: Check for status effects
         # TODO: Check if dead after status effects
         # Log results of action
+        if self.settings["pauses"]:
+            input("--Continue--")
 
     def __str__(self):
         return f"A character called {self.name}. {self.description}"

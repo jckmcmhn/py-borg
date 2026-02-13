@@ -11,18 +11,20 @@ parser.add_argument("-m", "--manual_dice", help = "One of 'never', 'pc_only', 'n
 parser.add_argument("-l", "--log", help = "Log level", nargs='?', const="info")
 parser.add_argument("-a", "--allow_attack_allies", nargs='?', const=False)
 args = parser.parse_args()
-if args.log == "info":
-    logging.basicConfig(
-        format="{asctime} - {levelname} - {message}",
-        style="{",
-        datefmt="%Y-%m-%d %H:%M",
-        level=logging.INFO)
-elif args.log == "debug":
-    logging.basicConfig(
-        format="{asctime} - {levelname} - {message}",
-        style="{",
-        datefmt="%Y-%m-%d %H:%M",
-        level=logging.DEBUG)
+
+
+if args.log.lower() == "info":
+    ll = logging.INFO
+elif args.log.lower() == "debug":
+    ll = logging.DEBUG
+elif args.log.lower() == "warning":
+    ll = logging.WARNING
+
+logging.basicConfig(
+    format="{asctime} - {levelname} - {message}",
+    style="{",
+    datefmt="%Y-%m-%d %H:%M",
+    level=ll)
 
 MANUAL_DICE_ROLLS = args.manual_dice
 ALLOW_ATTACK_ALLIES = args.allow_attack_allies.lower() == "true" #TODO: Eventually need a setting where it's allowed but the game crashes or makes more of a fuss if it happens
@@ -33,7 +35,8 @@ settings = {
     "allow_attack_allies": ALLOW_ATTACK_ALLIES,
     "mod_damage": 0,
     "to_hit": 0,
-    "to_dodge": 0
+    "to_dodge": 0,
+    "pauses": False
 }
 
 
@@ -78,5 +81,6 @@ little_guy_4 = Character(config, settings, "YALG2")
 
 
 #battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2, little_guy_3, little_guy_4], big_guy, self.settings["manual_dice"])
-battle = Battle([rolf, urm],[big_guy, little_guy, little_guy_2], settings, big_guy)
+#battle = Battle([rolf, urm],[big_guy, little_guy, little_guy_2], settings, big_guy)
+battle = Battle([rolf, urm],[big_guy], settings, big_guy)
 battle.run_battle()
