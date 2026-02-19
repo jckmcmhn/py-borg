@@ -181,12 +181,14 @@ class Character:
         for i, action in enumerate(actions):
             i += 1
             print(f"Option {i}: ")
-            if action[1].name.lower() == "death": #TODO: this is clumsy
+            tool = action[1]
+            targets = action[0]
+            if tool.name.lower() == "death": #TODO: this is clumsy
                 print(f"Cast DEATH which will hit all creatures\n")
-            elif isinstance(action[0],tuple):
-                print(f"Use {action[1].name} on {', '.join([target.name for target in action[0]])}.\nHow many of these targets are affected will depend on a subsequent {action[1].n} roll\n")
+            elif len(targets) > 1:
+                print(f"Use {tool.name} on {', '.join([target.name for target in targets])}.\nHow many of these targets are affected will depend on a subsequent {tool.n} roll\n")
             else:
-                print(f"Use {action[1].name} on {action[0].name}\n")
+                print(f"Use {tool.name} on {targets[0].name}\n")
         decision = int(input("\nWhich option? Just type the number: "))
         return actions[decision - 1]
 
@@ -368,21 +370,6 @@ class Character:
         multiplier = 1
         damage = multiplier * roll_dice(weapon.dice, self.settings["manual_dice"] in ["always", "npc_only"])
         target.apply_damage(damage)
-    
-    def manual_action(self, actions):
-        print("\n\nHere are the available options\n")
-        for i, action in enumerate(actions):
-            i += 1
-            print(f"Option {i}: ")
-            targets = action[0]
-            tool = action[1]
-            if tool.name.lower() == "death": #TODO: this is clumsy
-                print(f"Cast DEATH which will hit {', '.join([a.name for a in targets])}")
-            else:
-                #print(f"Use {action[1].name} on {action[0].name}")
-                print(f"Use {tool.name} on {', '.join([a.name for a in targets])}")
-        decision = int(input("\nWhich option? Just type the number: "))
-        return actions[decision - 1]
 
     def npc_calculate_vendettas(self, attacker, damage):
         logging.debug(f"Let's figure out {self.name}'s grievances!")
@@ -459,7 +446,6 @@ class Character:
         for _ in range(0, self.actions_this_turn):
             logging.debug(f"take_turn: Getting list of available actions for {self.name}")
             action = self.decision_function(allies, enemies)
-            print(action)
             print(f"{self.name} is taking this action: {action[1]} against {', '.join([target.name for target in action[0]])}")
             if isinstance(action[1], General):
                 print("Using a non-scroll action")
