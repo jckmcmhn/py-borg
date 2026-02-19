@@ -103,7 +103,7 @@ class Scroll(Equipment):
         return target_combinations, self
 
     def use(self, user, targets):
-        if user.dizzy:
+        if "dizzy" in user.statuses:
             logging.warning("Shouldn't try and use a scroll when dizzy")
             user.apply_damage(4 + self.settings["mod_damage"]) #TODO: This shouldn't be as hardcoded
             return False
@@ -112,7 +112,7 @@ class Scroll(Equipment):
             print(f"{user.name} failed the scroll roll. Roll a d2 for HP loss")
             damage = roll_dice("1d2", self.settings["manual_dice"] in ["always", "pc_only"])
             user.apply_damage(damage + self.settings["mod_damage"])
-            user.dizzy = True #TODO: How to make this only apply "for the next hour"
+            user.statuses["dizzy"] = 601 # The rules state that it should last for "1 hour". 601 is an hour's worth of rounds + 1
             return False
         if self.scroll_code == 10 and user.current_hp <=20:
             logging.warning("Casting Death with HP of 20 or less will most likely kill the caster as well")
@@ -148,7 +148,7 @@ class Scroll(Equipment):
             print(f"{user.name} failed the scroll roll and is now dizzy. Roll a d2 for HP loss")
             damage = roll_dice("1d2", self.settings["manual_dice"] in ["always", "pc_only"])
             user.apply_damage(damage + self.settings["mod_damage"])
-            user.dizzy = True #TODO: How to make this only apply "for the next hour"
+            user.statuses["dizzy"] = 601 # The rules state that it should last for "1 hour". 601 is an hour's worth of rounds + 1. +1 because it will get reduced by one at the end of this character's turn
             return False
 
     def __str__(self):

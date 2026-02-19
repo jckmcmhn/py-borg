@@ -64,7 +64,7 @@ class Character:
             self.decision_function = self.rules_based_action
         else:
             self.decision_function = self.random_action
-        self.dizzy = False # TODO: If true: During this time, Powers will always fail in the worst possible way.
+        self.statuses = {}
         print("----")
 
     def greet(self, greeting):
@@ -141,10 +141,11 @@ class Character:
         print(f"Here is {self.name}'s general equipment: {', '.join([i.name for i in equipment])}")
         self.equipment = equipment
 
-    def random_action(self, actions):
+    def random_action(self, allies, enemies):
+        actions = self.get_available_actions(allies, enemies)
         return choice(actions)
     
-    def rules_based_action(self, actions): # TODO: Make a hard mode version of this that knows more about enemy states
+    def rules_based_action(self, allies, enemies): # TODO: Make a hard mode version of this that knows more about enemy states
         if self.enemy_for_life is not None:
            if not self.enemy_for_life.alive:
                 print(f"{self.name} gloats over the body of {self.possessive} fallen enemy for life {self.enemy_for_life.name}.\n'That's what you get for messing with {self.name}' {self.subject} sneers")
@@ -157,23 +158,26 @@ class Character:
                 self.most_damage_taken_from = None
         if self.enemy_for_life is not None:
             print(f"{self.name} is attacking {self.possessive} enemy for life {self.enemy_for_life.name}")
-            return (self.enemy_for_life, self.primary_weapon)
+            return ((self.enemy_for_life,), self.primary_weapon)
         elif self.most_damage_taken_from is not None:
             print(f"{self.name} is attacking the enemy who has done the most damage to {self.third}: {self.most_damage_taken_from.name}")
-            return (self.most_damage_taken_from, self.primary_weapon)
+            return ((self.most_damage_taken_from,), self.primary_weapon)
         elif self.last_hit_enemy is not None:
             if random() < 0.7:
                 print(f"{self.name} is attacking the enemy they last hit: {self.last_hit_enemy.name}")
-                return (self.last_hit_enemy, self.primary_weapon)
+                return ((self.last_hit_enemy,), self.primary_weapon)
             else:
                 print(f"{self.name} could attack the enemy they last hit: {self.last_hit_enemy.name} but has decided not to")
-                return choice(actions)
+                action = self.random_action(allies, enemies)
+                return action
         else:
             print(f"{self.name} is picking a target at random")
-            return choice(actions)
+            action = self.random_action(allies, enemies)
+            return action
 
-    def manual_action(self, actions):
+    def manual_action(self, allies, enemies):
         print("\n\nHere are the available options\n")
+        actions = self.get_available_actions(allies, enemies)
         for i, action in enumerate(actions):
             i += 1
             print(f"Option {i}: ")
@@ -195,7 +199,7 @@ class Character:
                 "s_weapon_dice": self.secondary_weapon.dice, # an observant human GM would know this #TODO: Though maybe not on round 1
                 "scroll_codes": self.scroll_codes, # TODO: I would like to eventually make this "scrolls that audience has seen" but for now...
                 "armour_dice": self.armour.dice, # an observant human GM would know this #TODO: Though maybe not on round 1
-                "dizzy": self.dizzy,
+                "dizzy": "dizzy" in self.statuses,
                 "extra_actions_this_turn": self.actions_this_turn
             }
             if audience == "friends": # for now, let's say all PCs have thorough knowledge of their team mates states
@@ -364,8 +368,6 @@ class Character:
         multiplier = 1
         damage = multiplier * roll_dice(weapon.dice, self.settings["manual_dice"] in ["always", "npc_only"])
         target.apply_damage(damage)
-    def random_action(self, actions):
-        return choice(actions)
     
     def manual_action(self, actions):
         print("\n\nHere are the available options\n")
@@ -399,10 +401,10 @@ class Character:
             targets = others
         else:
             targets = enemies
-        for other in targets:
+        for target in targets:
             for weapon in [self.primary_weapon, self.secondary_weapon]:
-                other_weapon = ((other,), weapon)
-                weapon_actions.append(other_weapon)
+                target_weapon = ((target,), weapon)
+                weapon_actions.append(target_weapon)
         if self.is_pc is True:
             if self.powers > 1 and (self.scrolls is not None):
                 for scroll in self.scrolls:
@@ -421,6 +423,26 @@ class Character:
         logging.debug(f"{self.name}'s list of actions: {list}")
         return list
     
+    def update_statuses(self):
+        for status in self.statuses.keys():
+            self.statuses[status] -= 1
+            if self.statuses[status] == 0:
+                self.statuses.pop(status)
+                logging.debug(f"{status} has been removed from {self.name}")
+    
+    def apply_status_effects(self):
+        for status in self.statuses.keys():
+            if status == "suffocating":
+                print("Applying damage from suffocating status")
+                roll = roll_dice("1d4", True)
+                self.current_hp -= roll
+                if self.current_hp <= 0:
+                    print(f"{self.name} has suffocated")
+                    self.alive = False
+                    return False
+        return self.alive
+
+
     def take_turn(self, allies, enemies):
         print("------------------------------")
         print(f"{self.name} is starting {self.possessive} turn")
@@ -428,13 +450,16 @@ class Character:
             logging.warning(f"take_turn: {self.name} is supposed to be dead. Something has gone wrong here")
             print("------------------------------")
             return None
+        status_results = self.apply_status_effects()
+        if status_results is False:
+            return None
         self.actions_this_turn += 1
         if self.actions_this_turn > 1:
             logging.debug(f"{self.name} has {self.actions_this_turn} actions to take this turn")
         for _ in range(0, self.actions_this_turn):
             logging.debug(f"take_turn: Getting list of available actions for {self.name}")
-            actions = self.get_available_actions(allies, enemies)
-            action = self.decision_function(actions)
+            action = self.decision_function(allies, enemies)
+            print(action)
             print(f"{self.name} is taking this action: {action[1]} against {', '.join([target.name for target in action[0]])}")
             if isinstance(action[1], General):
                 print("Using a non-scroll action")
@@ -458,6 +483,7 @@ class Character:
         # TODO: Check for status effects
         # TODO: Check if dead after status effects
         # Log results of action
+        self.update_statuses()
         if self.settings["pauses"]:
             input("--Continue--")
 
