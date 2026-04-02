@@ -7,9 +7,9 @@ from classes.battle import Battle
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-m", "--manual_dice", help = "One of 'never', 'pc_only', 'npc_only', 'always' and 'pauses'", nargs='?', const="never")
-parser.add_argument("-l", "--log", help = "Log level", nargs='?', const="info")
-parser.add_argument("-a", "--allow_attack_allies", nargs='?', const=False)
+parser.add_argument("-m", "--manual_dice", help = "One of 'never', 'pc_only', 'npc_only', 'always' and 'pauses'", default="never")
+parser.add_argument("-l", "--log", help = "Log level", default="info")
+parser.add_argument("-a", "--allow_attack_allies", default="false")
 args = parser.parse_args()
 
 
