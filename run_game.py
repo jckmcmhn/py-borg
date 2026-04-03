@@ -7,7 +7,7 @@ from classes.battle import Battle
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-m", "--manual_dice", help = "One of 'never', 'pc_only', 'npc_only', 'always' and 'pauses'", default="never")
+parser.add_argument("-m", "--manual_dice", help = "One of 'never', 'pc_only', 'npc_only', 'always' and 'pc_decisions'", default="never")
 parser.add_argument("-l", "--log", help = "Log level", default="info")
 parser.add_argument("-a", "--allow_attack_allies", default="false")
 args = parser.parse_args()
@@ -31,12 +31,12 @@ ALLOW_ATTACK_ALLIES = args.allow_attack_allies.lower() == "true" #TODO: Eventual
 
 
 settings = {
-    "manual_dice": MANUAL_DICE_ROLLS, # one of "never", "pc_only", "npc_only", "always" and "pauses" #TODO: Convert these to integers for better performance
+    "manual_dice": MANUAL_DICE_ROLLS, # one of "never", "pc_only", "npc_only", "always" and "pc_decisions" #TODO: Convert these to integers for better performance
     "allow_attack_allies": ALLOW_ATTACK_ALLIES,
     "mod_damage": 0,
     "to_hit": 0,
     "to_dodge": 0,
-    "pauses": False
+    "pauses": False # TODO: make this configurable
 }
 
 
