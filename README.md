@@ -13,6 +13,4 @@ Py Borg is an independent production by jckmcmhn and is not affiliated with Ocku
 
 MÖRK BORG is copyright Ockult Örtmästare Games and Stockholm Kartell.
 
-![Compatible with MÖRK BORG logo](comp_with_mork_borg.svg)
-
-<img src="comp_with_mork_borg.svg" width="800" alt="Compatible with MÖRK BORG logo">
+<img src="comp_with_mork_borg.svg" width="600" alt="Compatible with MÖRK BORG logo">
