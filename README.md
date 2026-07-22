@@ -11,4 +11,6 @@ Py Borg was the next most obvious name, but I should clarify that this is an ada
 # License
 Py Borg is an independent production by jckmcmhn and is not affiliated with Ockult Örtmästare Games or Stockholm Kartell. It is published under the MÖRK BORG Third Party License.
 
-MÖRK BORG is copyright Ockult Örtmästare Games and Stockholm Kartell. 
+MÖRK BORG is copyright Ockult Örtmästare Games and Stockholm Kartell.
+
+<img src="comp_with_mork_borg.svg" width="500" alt="Compatible with MÖRK BORG logo">
