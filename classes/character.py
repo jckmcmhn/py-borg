@@ -401,7 +401,7 @@ class Character:
                     #scroll_actions.append((targets, scroll))
             if self.equipment is not None:
                 for item in self.equipment:
-                    if item.count > 0: #Pretty embarassed not to remember this sooner, Urm was on -13 medicine chests
+                    if item.count > 0: #Pretty embarrassed not to remember this sooner, Urm was on -13 medicine chests
                         targets, _ = item.list_actions(allies, enemies, self)
                         for target in targets:
                             equipment_actions.append((target, item))
