@@ -28,7 +28,7 @@ class Team:
                 self.chars = [char_left for char_left in self.chars if char_left != char] #TODO: I think there's a function for this
                 logging.debug(f"This many NPCs left {len(self.chars)}")
             else:
-                logging.info(f"Morale check fail for PCs")
+                logging.info(f"Morale check fail for PCs against {char.name}")
 
     def update_team(self):
         self.chars = [char for char in self.chars if char.alive]
@@ -37,7 +37,7 @@ class Team:
     def morale_test_check_one_third(self):
         npcs_passed = True
         for char in self.chars:
-            logging.debug(f"Checking if need morale test based on one third rule for: {char.name} {char.current_hp} {char.max_hp} {(char.current_hp / char.max_hp)}")
+            logging.debug(f"Checking if need morale test based on one third rule for: {char.name}. Current HP: {char.current_hp} Max HP: {char.max_hp} Current/Max HP: {(char.current_hp / char.max_hp)}")
             if 0.33 >= (char.current_hp / char.max_hp):
                 logging.debug(f"NPCs failed morale_test_check_one_third.")
                 self.morale_test()
