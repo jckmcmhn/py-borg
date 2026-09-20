@@ -191,7 +191,7 @@ class Weapon(Equipment): #TODO: could weapon use things that are defined in the 
         self.id = uuid.uuid4()        
 
     def __str__(self):
-        return "It's a %s called %s it deals %s" % (self.category, self.name, self.dice)
+        return "It is a %s-type weapon called %s, it deals %s" % (self.category, self.name, self.dice)
     
 class Armour(Equipment):
     def __init__(self, config, wearer, settings):

@@ -178,6 +178,8 @@ class Character:
     def manual_action(self, allies, enemies):
         print("\n\nHere are the available options\n")
         actions = self.get_available_actions(allies, enemies)
+        print("Option -1:") #TODO: Hide this if playing a "real" game
+        print("View current game state (Not supported yet)\n",)#TODO: Implement this
         for i, action in enumerate(actions):
             i += 1
             print(f"Option {i}: ")
@@ -189,7 +191,12 @@ class Character:
                 print(f"Use {tool.name} on {', '.join([target.name for target in targets])}.\nHow many of these targets are affected will depend on a subsequent {tool.n} roll\n")
             else:
                 print(f"Use {tool.name} on {targets[0].name}\n")
-        decision = int(input("\nWhich option? Just type the number: "))
+        decision = -1
+        while decision == -1:
+            decision = int(input("\nWhich option? Just type the number: "))
+            if decision == -1:
+                print("Current state would go here") #TODO
+
         return actions[decision - 1]
 
     def get_obs(self, audience):
@@ -242,8 +249,10 @@ class Character:
         logging.debug("roll_broken: Death roll") # Not crazy about this whole "broken" concept
         broken_roll = roll_dice("1d4", self.settings["manual_dice"] in ["always", "npc_only"])
         if broken_roll == 4:
-            print(f"{self.name} is DEAD")
+            print(f"{self.name} rolled a four and is now DEAD!")
             self.alive = False
+        else:
+            logging.debug(f"{self.name} rolled a {broken_roll}. This result hasn't been implemented in the code yet.") #TODO
 
     def apply_damage(self,damage):
         if (self.armour is not None) and (not self.armour.dice.startswith("0d2")):
@@ -256,14 +265,13 @@ class Character:
             print(f"{self.name} has no armour")
         if damage > 0:
             self.current_hp -= damage
-            print(f"{self.name} took {damage} damage and is {self.current_hp} HP now")
+            print(f"{self.name} took {damage} damage and is on {self.current_hp} HP now") #TODO: Option to hide this second part, players shouldn't know how many HP an enemy has left
             if self.current_hp == 0:
                 self.roll_broken()
             elif self.current_hp < 0:
                 print(f"{self.name} is DEAD")
                 self.alive = False
             else:
-                print(f"{self.name} is on {self.current_hp}")
                 self.alive = True
             #if self.alive:
             #    self.npc_calculate_vendettas(attacker,damage)
@@ -378,6 +386,8 @@ class Character:
             if self.enemy_for_life is None and 0.5 < (damage / self.max_hp):
                 print(f"{self.name} lets out a mighty roar. {self.subject.capitalize()} points at {attacker.name} and declares 'You just made an enemy for life bucko!'")
                 self.enemy_for_life = attacker
+            else:
+                logging.debug(f"{self.name} did not designate {attacker.name} as their enemy for life")
 
     def get_available_actions(self, allies, enemies):
         weapon_actions = []
@@ -446,7 +456,7 @@ class Character:
         for _ in range(0, self.actions_this_turn):
             logging.debug(f"take_turn: Getting list of available actions for {self.name}")
             action = self.decision_function(allies, enemies)
-            print(f"{self.name} is taking this action: {action[1]} against {', '.join([target.name for target in action[0]])}")
+            print(f"{self.name} is taking an action: {action[1]} against {', '.join([target.name for target in action[0]])}")
             if isinstance(action[1], General):
                 print("Using a non-scroll action")
                 self.use_equipment(action)
