@@ -146,6 +146,9 @@ class Character:
         return choice(actions)
     
     def rules_based_action(self, allies, enemies): # TODO: Make a hard mode version of this that knows more about enemy states
+        logging.debug(f"{self.name} is making a rules-based decision on what to do next")
+
+        # Reset grudges and grievances based on whether they're targets are still alive
         if self.enemy_for_life is not None:
            if not self.enemy_for_life.alive:
                 print(f"{self.name} gloats over the body of {self.possessive} fallen enemy for life {self.enemy_for_life.name}.\n'That's what you get for messing with {self.name}' {self.subject} sneers")
@@ -153,9 +156,12 @@ class Character:
         if self.most_damage_taken_from is not None:
             if not self.most_damage_taken_from.alive:
                 self.most_damage_taken_from = None
+                logging.debug(f"{self.name} has cleared their most_damage_taken_from status")
         if self.last_hit_enemy is not None:
             if not self.most_damage_taken_from.alive:
                 self.most_damage_taken_from = None
+                logging.debug(f"{self.name} has cleared their last_hit_enemy status")
+        logging.debug(f"{self.name}'s grudges and grievances: enemy_for_life = {self.enemy_for_life}, most_damage_taken_from = {self.most_damage_taken_from}, last_hit_enemy = {self.last_hit_enemy}")
         if self.enemy_for_life is not None:
             print(f"{self.name} is attacking {self.possessive} enemy for life {self.enemy_for_life.name}")
             return ((self.enemy_for_life,), self.primary_weapon)
@@ -484,5 +490,5 @@ class Character:
             input("--Continue--")
 
     def __str__(self):
-        return f"A character called {self.name}. {self.description}"
+        return f"A character called {self.name}"
     
