@@ -185,7 +185,8 @@ class Character:
         print("\n\nHere are the available options\n")
         actions = self.get_available_actions(allies, enemies)
         print("Option -1:") #TODO: Hide this if playing a "real" game
-        print("View current game state (Not supported yet)\n",)#TODO: Implement this
+        print("View current game state\n",)
+
         for i, action in enumerate(actions):
             i += 1
             print(f"Option {i}: ")
@@ -201,11 +202,14 @@ class Character:
         while decision == -1:
             decision = int(input("\nWhich option? Just type the number: "))
             if decision == -1:
-                print("Current state would go here") #TODO
+                for char in [self] + allies + enemies: #TODO: This should be handled less clumsily. Arguably, shouldn't let people see the enemy stats by default
+                    print(char.name)
+                    print(char.get_obs())
 
         return actions[decision - 1]
 
-    def get_obs(self, audience):
+    def get_obs(self, audience = "admin"):
+        # admin means show everything anyone knows, friends means share stats players might share amongst eachother, gm means share stats on NPCs that only the GM has
         if self.alive is False:
             return {}
         if self.is_pc: 
@@ -217,7 +221,7 @@ class Character:
                 "dizzy": "dizzy" in self.statuses,
                 "extra_actions_this_turn": self.actions_this_turn
             }
-            if audience == "friends": # for now, let's say all PCs have thorough knowledge of their team mates states
+            if audience in ["admin","friends"]: # for now, let's say all PCs have thorough knowledge of their team mates states
                 obs["max_hp"] = self.max_hp
                 obs["current_hp"] = self.current_hp
                 obs["strength"] = self.abilities["strength"]
@@ -233,8 +237,14 @@ class Character:
                 "p_weapon_dice": self.primary_weapon.dice, # an observant human player would know this
                 "s_weapon_dice": self.secondary_weapon.dice, # an observant human player would know this
                 "size": self.size,
-                "morale": self.morale, #TODO: PCs shouldn't know this pre-morale roll
             }
+            if audience in ["admin", "gm"]:
+                obs["max_hp"] = self.max_hp
+                obs["current_hp"] = self.current_hp
+                obs["morale"]: self.morale #TODO: PCs would know this post-morale roll
+                #obs["defence"] = self.defence
+                #obs["powers"] = self.powers
+                #obs["number_items"] = self.items #TODO: This should ideally be # of useful items, or # of items by category
         return obs
 
     def am_i_dead(self):

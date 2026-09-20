@@ -13,6 +13,17 @@ class Team:
             self.leader_killed = False
             self.half_elim = False
             self.one_third = False
+        else:
+            self.leader = None
+
+    def team_status(self):
+        print(f"team_status: {self.name} status")
+        print(f"Surviving members: {', '.join([ char.name for char in self.chars])}") #TODO: Won't read right if only one member left
+        if self.leader is not None: # Only applies to npc team
+            print(f"Morale test statuses: leader killed = {self.leader_killed}, half_elim = {self.half_elim}, one_third = {self.one_third}")
+        for char in self.chars:
+            print(f"obs for {char.name}:")
+            print(char.get_obs())
 
     def morale_test(self):
         if len(self.chars):
@@ -31,7 +42,11 @@ class Team:
                 logging.info(f"Morale check fail for PCs against {char.name}")
 
     def update_team(self):
+        len_before = len(self.chars)
         self.chars = [char for char in self.chars if char.alive]
+        len_after = len(self.chars)
+        if len_before != len_after:
+            logging.debug(f"update_team: {self.name} has gone from {len_before} to {len_after} members")
         return len(self.chars)
     
     def morale_test_check_one_third(self):

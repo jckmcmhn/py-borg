@@ -78,8 +78,10 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
         while self.battle_over is False:
             #TODO: This whole team term block could be a function
             winner, i_team_turns_taken, i_individual_turns_taken = self.run_round_side(self.first_team, self.second_team)
+            self.first_team.team_status()
             if self.battle_over is False:
                 winner, i_team_turns_taken, i_individual_turns_taken = self.run_round_side(self.second_team, self.first_team)
+                self.second_team.team_status()
             team_turns_taken += i_team_turns_taken
             individual_turns_taken += i_individual_turns_taken
             rounds += 1
