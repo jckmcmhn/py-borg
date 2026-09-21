@@ -65,6 +65,7 @@ class Character:
         else:
             self.decision_function = self.random_action
         self.statuses = {}
+        self.enemy_healers = []
         print("----")
 
     def greet(self, greeting):
@@ -136,7 +137,7 @@ class Character:
         equipment = []
         for item in items:
             if item["type"] != "scroll":
-                i = General(item["name"], item["dice"], self.settings)
+                i = General(item["name"], item["dice"], item["type"], self.settings)
                 equipment.append(i)
         print(f"Here is {self.name}'s general equipment: {', '.join([i.name for i in equipment])}")
         self.equipment = equipment
@@ -149,6 +150,7 @@ class Character:
         logging.debug(f"{self.name} is making a rules-based decision on what to do next")
 
         # Reset grudges and grievances based on whether they're targets are still alive
+        # #TODO: Add enemy_healer logic here, need a way to clear it for npcs and *pcs* if healer is dead
         if self.enemy_for_life is not None:
            if not self.enemy_for_life.alive:
                 print(f"{self.name} gloats over the body of {self.possessive} fallen enemy for life {self.enemy_for_life.name}.\n'That's what you get for messing with {self.name}' {self.subject} sneers")
@@ -161,7 +163,7 @@ class Character:
             if not self.most_damage_taken_from.alive:
                 self.most_damage_taken_from = None
                 logging.debug(f"{self.name} has cleared their last_hit_enemy status")
-        logging.debug(f"{self.name}'s grudges and grievances: enemy_for_life = {self.enemy_for_life}, most_damage_taken_from = {self.most_damage_taken_from}, last_hit_enemy = {self.last_hit_enemy}")
+        logging.debug(f"{self.name}'s grudges and grievances: enemy_for_life = {self.enemy_for_life}, most_damage_taken_from = {self.most_damage_taken_from}, last_hit_enemy = {self.last_hit_enemy}, enemy_healers = {self.enemy_healers}")
         if self.enemy_for_life is not None:
             print(f"{self.name} is attacking {self.possessive} enemy for life {self.enemy_for_life.name}")
             return ((self.enemy_for_life,), self.primary_weapon)
@@ -209,7 +211,10 @@ class Character:
         return actions[decision - 1]
 
     def get_obs(self, audience = "admin"):
-        # admin means show everything anyone knows, friends means share stats players might share amongst each other, gm means share stats on NPCs that only the GM has
+        # audience values:
+        # "admin": return everything anyone knows
+        # "friends": return stats players might share amongst each other
+        # "gm": return stats on NPCs that only the GM has
         if self.alive is False:
             return {}
         if self.is_pc: 
@@ -242,9 +247,7 @@ class Character:
                 obs["max_hp"] = self.max_hp
                 obs["current_hp"] = self.current_hp
                 obs["morale"]: self.morale #TODO: PCs would know this post-morale roll
-                #obs["defence"] = self.defence
-                #obs["powers"] = self.powers
-                #obs["number_items"] = self.items #TODO: This should ideally be # of useful items, or # of items by category
+        obs["enemy_healers"] = self.enemy_healers
         return obs
 
     def am_i_dead(self):
@@ -406,6 +409,9 @@ class Character:
             else:
                 logging.debug(f"{self.name} did not designate {attacker.name} as their enemy for life")
 
+    def update_enemy_healers(self, healer):
+        self.enemy_healers.append(healer)
+
     def get_available_actions(self, allies, enemies):
         weapon_actions = []
         scroll_actions = []
@@ -472,25 +478,25 @@ class Character:
             logging.debug(f"{self.name} has {self.actions_this_turn} actions to take this turn")
         for _ in range(0, self.actions_this_turn):
             logging.debug(f"take_turn: Getting list of available actions for {self.name}")
-            action = self.decision_function(allies, enemies)
-            print(f"{self.name} is taking an action: {action[1]} against {', '.join([target.name for target in action[0]])}")
-            if isinstance(action[1], General):
+            targets, weapon_or_item = self.decision_function(allies, enemies)
+            print(f"{self.name} is taking an action: {weapon_or_item} against {', '.join([target.name for target in targets])}")
+            if isinstance(weapon_or_item, General):
                 print("Using a non-scroll action")
-                self.use_equipment(action)
-            elif isinstance(action[1], Scroll):
-                action[1].use(self, action[0])
-            elif isinstance(action[1], Weapon):
-                target = action[0][0] # For weapons, there should only be one target
+                self.use_equipment((targets, weapon_or_item))
+            elif isinstance(weapon_or_item, Scroll):
+                weapon_or_item.use(self, targets)
+            elif isinstance(weapon_or_item, Weapon):
+                target = targets[0] # For weapons, there should only be one target
                 if target.is_pc and self.is_pc: # this might be the usecase for is_ally? #TODO: these checks should also be applied to scrolls and general above
                     logging.warning(f"take_turn: {self.name} is attacking their ally {target.name}")
-                    self.make_standard_attack(action[0], action[1])
+                    self.make_standard_attack(target, weapon_or_item)
                 elif (not target.is_pc) and (not self.is_pc):
                     logging.warning(f"take_turn: {self.name} is attacking their ally {target.name}")
-                    self.npc_attack_with_weapon_on_npc(target, action[1])
+                    self.npc_attack_with_weapon_on_npc(target, weapon_or_item)
                 else:
                     logging.info(f"take_turn: {self.name} is attacking {target.name}")
-                    self.make_standard_attack(target, action[1])
-                self.last_target = action[0]
+                    self.make_standard_attack(target, weapon_or_item)
+                self.last_target = targets
             print("------------------------------")
         self.actions_this_turn = 0
         # TODO: Check for status effects
@@ -499,6 +505,7 @@ class Character:
         self.update_statuses()
         if self.settings["pauses"]:
             input("--Continue--")
+        return weapon_or_item.type
 
     def __str__(self):
         return f"A character called {self.name}"

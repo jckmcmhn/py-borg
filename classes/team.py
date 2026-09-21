@@ -93,3 +93,7 @@ class Team:
             self.morale_test_check_leader_dead()
         else:
             logging.debug("Leader dead test has already been done this battle")
+
+    def update_enemy_healers_for_team(self, healer):
+        for char in self.chars:
+            char.enemy_healers.append(healer)

@@ -155,13 +155,14 @@ class Scroll(Equipment):
         return f"A scroll object called {self.name} ({self.flavour})"
 
 class General(Equipment):
-    def __init__(self, name, dice, settings):
+    def __init__(self, name, dice, type, settings):
         self.settings = settings
         self.name = name
         self.id = uuid.uuid4()
         self.name = name.lower().replace("_"," ")
         self.dice = dice
         self.count = 4 #TODO: Make this configurable
+        self.type = type
 
     def list_actions(self, allies, enemies, user):
         targets = allies + enemies
