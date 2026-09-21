@@ -185,7 +185,8 @@ class Character:
         print("\n\nHere are the available options\n")
         actions = self.get_available_actions(allies, enemies)
         print("Option -1:") #TODO: Hide this if playing a "real" game
-        print("View current game state (Not supported yet)\n",)#TODO: Implement this
+        print("View current game state\n",)
+
         for i, action in enumerate(actions):
             i += 1
             print(f"Option {i}: ")
@@ -201,11 +202,14 @@ class Character:
         while decision == -1:
             decision = int(input("\nWhich option? Just type the number: "))
             if decision == -1:
-                print("Current state would go here") #TODO
+                for char in [self] + allies + enemies: #TODO: This should be handled less clumsily. Arguably, shouldn't let people see the enemy stats by default
+                    print(char.name)
+                    print(char.get_obs())
 
         return actions[decision - 1]
 
-    def get_obs(self, audience):
+    def get_obs(self, audience = "admin"):
+        # admin means show everything anyone knows, friends means share stats players might share amongst each other, gm means share stats on NPCs that only the GM has
         if self.alive is False:
             return {}
         if self.is_pc: 
@@ -217,7 +221,7 @@ class Character:
                 "dizzy": "dizzy" in self.statuses,
                 "extra_actions_this_turn": self.actions_this_turn
             }
-            if audience == "friends": # for now, let's say all PCs have thorough knowledge of their team mates states
+            if audience in ["admin","friends"]: # for now, let's say all PCs have thorough knowledge of their team mates states
                 obs["max_hp"] = self.max_hp
                 obs["current_hp"] = self.current_hp
                 obs["strength"] = self.abilities["strength"]
@@ -233,8 +237,14 @@ class Character:
                 "p_weapon_dice": self.primary_weapon.dice, # an observant human player would know this
                 "s_weapon_dice": self.secondary_weapon.dice, # an observant human player would know this
                 "size": self.size,
-                "morale": self.morale, #TODO: PCs shouldn't know this pre-morale roll
             }
+            if audience in ["admin", "gm"]:
+                obs["max_hp"] = self.max_hp
+                obs["current_hp"] = self.current_hp
+                obs["morale"]: self.morale #TODO: PCs would know this post-morale roll
+                #obs["defence"] = self.defence
+                #obs["powers"] = self.powers
+                #obs["number_items"] = self.items #TODO: This should ideally be # of useful items, or # of items by category
         return obs
 
     def am_i_dead(self):
@@ -279,7 +289,7 @@ class Character:
                 self.alive = False
             else:
                 self.alive = True
-            #if self.alive:
+            #if self.alive and not self.is_pc:
             #    self.npc_calculate_vendettas(attacker,damage)
             return self.alive
         else:
@@ -353,7 +363,7 @@ class Character:
                 if target_alive and critical and target.armour is not None:
                     target.armour.reduce_tier(target,1)
                 if (not target.is_pc) and target_alive:
-                    target.npc_calculate_vendettas(self,damage) # TODO: This is the pre-armour reduction damage
+                    target.npc_calculate_vendettas(self,damage) # TODO: This is the pre-armour reduction damage # Only doing this on weapon attacks isn't right
             else:
                 print(f"{self.name} misses")
 
@@ -389,6 +399,7 @@ class Character:
         logging.debug(f"Let's figure out {self.name}'s grievances!")
         if damage > self.most_damage_taken:
             self.most_damage_taken_from = attacker
+            logging.debug(f"{self.name} has a new most_damage_taken value. It is {self.most_damage_taken}, received from {self.most_damage_taken_from}")
             if self.enemy_for_life is None and 0.5 < (damage / self.max_hp):
                 print(f"{self.name} lets out a mighty roar. {self.subject.capitalize()} points at {attacker.name} and declares 'You just made an enemy for life bucko!'")
                 self.enemy_for_life = attacker
