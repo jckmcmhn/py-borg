@@ -209,7 +209,7 @@ class Character:
         return actions[decision - 1]
 
     def get_obs(self, audience = "admin"):
-        # admin means show everything anyone knows, friends means share stats players might share amongst eachother, gm means share stats on NPCs that only the GM has
+        # admin means show everything anyone knows, friends means share stats players might share amongst each other, gm means share stats on NPCs that only the GM has
         if self.alive is False:
             return {}
         if self.is_pc: 
@@ -289,7 +289,7 @@ class Character:
                 self.alive = False
             else:
                 self.alive = True
-            #if self.alive:
+            #if self.alive and not self.is_pc:
             #    self.npc_calculate_vendettas(attacker,damage)
             return self.alive
         else:
@@ -363,7 +363,7 @@ class Character:
                 if target_alive and critical and target.armour is not None:
                     target.armour.reduce_tier(target,1)
                 if (not target.is_pc) and target_alive:
-                    target.npc_calculate_vendettas(self,damage) # TODO: This is the pre-armour reduction damage
+                    target.npc_calculate_vendettas(self,damage) # TODO: This is the pre-armour reduction damage # Only doing this on weapon attacks isn't right
             else:
                 print(f"{self.name} misses")
 
@@ -399,6 +399,7 @@ class Character:
         logging.debug(f"Let's figure out {self.name}'s grievances!")
         if damage > self.most_damage_taken:
             self.most_damage_taken_from = attacker
+            logging.debug(f"{self.name} has a new most_damage_taken value. It is {self.most_damage_taken}, received from {self.most_damage_taken_from}")
             if self.enemy_for_life is None and 0.5 < (damage / self.max_hp):
                 print(f"{self.name} lets out a mighty roar. {self.subject.capitalize()} points at {attacker.name} and declares 'You just made an enemy for life bucko!'")
                 self.enemy_for_life = attacker
