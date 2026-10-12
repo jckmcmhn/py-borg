@@ -1,6 +1,7 @@
 from random import shuffle
 from classes import roll_dice
 from classes.team import Team
+import logging
 
 class Battle: # Is this one class too many? Probably, but I've got class fever over here
     def __init__(self, pcs, npcs, settings, leader = None):
@@ -39,13 +40,13 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
         # TODO: Individual initiative may not be RAW
 
     def run_round_side(self, on_team, off_team):
-        print(f"The team of {', '.join([ char.name for char in on_team.chars])} is taking their go") #TODO: Won't read right if only one member left
+        print(f"The team of {', '.join([ char.name for char in on_team.chars])} is taking their go")
         i_team_turns_taken = 0
         i_individual_turns_taken = 0
         for char in on_team.chars:
             allies = [x for x in on_team.chars if x != char and x.alive is True]
             if char.alive:
-                char.take_turn(allies, off_team.chars)
+                action_type = char.take_turn(allies, off_team.chars)
                 i_individual_turns_taken += 1
 
                 if min([on_team.update_team(),off_team.update_team()]) == 0:
@@ -57,6 +58,10 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
                 if min([on_team.update_team(),off_team.update_team()]) == 0:
                     self.battle_over = True
                     break
+
+                if action_type == "healing":
+                    logging.debug(f"{off_team.name} have witnessed {char.name} from {on_team.name} attempt healing")
+                    off_team.update_enemy_healers_for_team(char)
                     
         i_team_turns_taken += 1
         if 0 == on_team.update_team() and 0 == off_team.update_team():
