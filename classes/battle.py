@@ -91,5 +91,15 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
             individual_turns_taken += i_individual_turns_taken
             rounds += 1
             print(f"End of round {rounds}")
-        print(f"There were {rounds} rounds and {individual_turns_taken} individual turns")
+        if rounds == 1:
+            round_string = "round"
+            were_was = "was"
+        else:
+            round_string = "rounds"
+            were_was = "were"
+        if individual_turns_taken == 1:
+            individual_turns_string = "individual turn"
+        else:
+            individual_turns_string = "individual turns"
+        print(f"There {were_was} {rounds} {round_string} and {individual_turns_taken} {individual_turns_string}")
 

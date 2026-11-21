@@ -226,7 +226,7 @@ class Character:
                 "dizzy": "dizzy" in self.statuses,
                 "extra_actions_this_turn": self.actions_this_turn
             }
-            if audience in ["admin","friends"]: # for now, let's say all PCs have thorough knowledge of their team mates states
+            if audience in ["admin","friends"]: # for now, let's say all PCs have thorough knowledge of their team mate's states
                 obs["max_hp"] = self.max_hp
                 obs["current_hp"] = self.current_hp
                 obs["strength"] = self.abilities["strength"]
@@ -248,6 +248,7 @@ class Character:
                 obs["current_hp"] = self.current_hp
                 obs["morale"]: self.morale #TODO: PCs would know this post-morale roll
         obs["enemy_healers"] = self.enemy_healers
+        obs["statuses"] = self.statuses
         return obs
 
     def am_i_dead(self):
@@ -451,15 +452,22 @@ class Character:
                 logging.debug(f"{status} has been removed from {self.name}")
     
     def apply_status_effects(self):
-        for status in self.statuses.keys():
+        logging.debug(f"Applying status effects to {self.name}: {self.statuses}")
+        for i, status in enumerate(self.statuses.keys()):
+            logging.debug(f"Applying status effect #{i} to {self.name}: {status}")
             if status == "suffocating":
                 print("Applying damage from suffocating status")
-                roll = roll_dice("1d4", True)
+                if self.is_pc:
+                    roll = roll_dice("1d4", self.settings["manual_dice"] in ["pc_only", "always"])
+                else:
+                    roll = roll_dice("1d4", self.settings["manual_dice"] in ["npc_only", "always"])
+                print(f"{self.name} takes {roll} damage")
                 self.current_hp -= roll
                 if self.current_hp <= 0:
                     print(f"{self.name} has suffocated")
                     self.alive = False
                     return False
+                logging.debug(f"{self.name} has {self.current_hp} HP left after applying suffocating")
         return self.alive
 
 

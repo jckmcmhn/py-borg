@@ -17,6 +17,13 @@ name_to_config = {
         "type": "offensive",
         "n": "1d2"
     },
+    "suffocate": {
+        "dice": "1d6",
+        "scroll_code": 5,
+        "type": "status",
+        "status": "suffocating",
+        "n": "1d1"
+    },
     "lightningbolt": {
         "dice": "1d6",
         "scroll_code": 6,
@@ -58,6 +65,11 @@ class Equipment:
         print(f"Inflicting {damage} scroll damage to {target.name}")
         target.apply_damage(damage)
 
+    def apply_status(self, target, multiplier):
+        print(f"Roll for {self.name} duration")
+        duration = roll_dice(self.dice, self.settings["manual_dice"] in ["always", "pc_only"])
+        target.statuses[self.status] = duration
+
 class Scroll(Equipment):
     def __init__(self, name, flavour, settings):
         self.settings = settings
@@ -70,6 +82,8 @@ class Scroll(Equipment):
         self.type = config["type"]
         self.scroll_code = config["scroll_code"]
         self.dice = config["dice"]
+        if config.get("status") is not None:
+            self.status = config["status"]
         n = config.get("n", "1d10000000") #TODO: This should just be infinite
         self.max_n = int(n.split("d")[1])
         self.n = n
@@ -79,9 +93,11 @@ class Scroll(Equipment):
             self.apply_scroll_effect = self.do_damage
         elif name in ["aegis", "grace"]:
             self.apply_scroll_effect = self.heal
+        elif name in ["suffocate"]:
+            self.apply_scroll_effect = self.apply_status
 
     def list_actions(self, allies, enemies, caster):
-        if self.scroll_code in [1,6]: # Fireball Lightning
+        if self.scroll_code in [1, 5, 6]: # Fireball Suffocate Lightning
             n = 2
             if self.settings["allow_attack_allies"]:
                 targets = allies + enemies
