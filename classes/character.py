@@ -276,10 +276,10 @@ class Character:
 
     def apply_damage(self,damage):
         if (self.armour is not None) and (not self.armour.dice.startswith("0d2")):
-            logging.debug(f"apply_damage: Incoming damage is {damage}. Rolling for armour")
+            print(f"Incoming damage is {damage}. Rolling for armour")
             armour_reduction = roll_dice(self.armour.dice, self.settings["manual_dice"] in ["always"])
             logging.debug(f"apply_damage: {self.name} has {self.current_hp} HP before taking damage.")
-            logging.info(f"Reducing damage by {armour_reduction} due to armour")
+            print(f"Reducing damage by {armour_reduction} due to armour")
             damage -= armour_reduction
         else:
             print(f"{self.name} has no armour")
@@ -487,7 +487,7 @@ class Character:
         for _ in range(0, self.actions_this_turn):
             logging.debug(f"take_turn: Getting list of available actions for {self.name}")
             targets, weapon_or_item = self.decision_function(allies, enemies)
-            print(f"{self.name} is taking an action: {weapon_or_item} against {', '.join([target.name for target in targets])}")
+            print(f"{self.name} is taking an action: {weapon_or_item.name} against {', '.join([target.name for target in targets])}")
             if isinstance(weapon_or_item, General):
                 print("Using a non-scroll action")
                 self.use_equipment((targets, weapon_or_item))
