@@ -457,7 +457,10 @@ class Character:
             logging.debug(f"Applying status effect #{i} to {self.name}: {status}")
             if status == "suffocating":
                 print("Applying damage from suffocating status")
-                roll = roll_dice("1d4", True)
+                if self.is_pc:
+                    roll = roll_dice("1d4", self.settings["manual_dice"] in ["pc_only", "always"])
+                else:
+                    roll = roll_dice("1d4", self.settings["manual_dice"] in ["npc_only", "always"])
                 print(f"{self.name} takes {roll} damage")
                 self.current_hp -= roll
                 if self.current_hp <= 0:
