@@ -33,8 +33,8 @@ ALLOW_ATTACK_ALLIES = args.allow_attack_allies.lower() == "true" #TODO: Eventual
 settings = {
     "manual_dice": MANUAL_DICE_ROLLS, # one of "never", "pc_only", "npc_only", "always" and "pc_decisions" #TODO: Convert these to integers for better performance
     "allow_attack_allies": ALLOW_ATTACK_ALLIES,
-    "mod_damage": 2,
-    "to_hit": 10,
+    "mod_damage": 0,
+    "to_hit": 0,
     "to_dodge": 0,
     "pauses": False # TODO: make this configurable
 }
@@ -53,8 +53,8 @@ def poll_team(team):
             break
     return team_left
 
-with open("configs/pc_sample.yaml", "r") as f:
-    config = yaml.load(f, Loader=yaml.SafeLoader)
+#with open("configs/pc_sample.yaml", "r") as f:
+#    config = yaml.load(f, Loader=yaml.SafeLoader)
 #urvarg = Character(config, settings)
 
 with open("configs/pc_sample_2.yaml", "r") as f:
