@@ -8,7 +8,7 @@ from classes.battle import Battle
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--manual_dice", help = "One of 'never', 'pc_only', 'npc_only', 'always' and 'pc_decisions'", default="never")
-parser.add_argument("-l", "--log", help = "Log level", default="info")
+parser.add_argument("-l", "--log", help = "Log level, one of 'debug', 'info', 'warning'. Select 'warning' for the fewest messages overall", default="info")
 parser.add_argument("-a", "--allow_attack_allies", default="false")
 args = parser.parse_args()
 
@@ -39,11 +39,10 @@ settings = {
     "pauses": False # TODO: make this configurable
 }
 
-
 print("Starting the game")
-print(f"MANUAL_DICE_ROLLS is {MANUAL_DICE_ROLLS}\n\n")
-print(f"ALLOW_ATTACK_ALLIES is {ALLOW_ATTACK_ALLIES}\n\n")
-print("Enter 0 to skip manual dice rolls if needed")
+print(f"MANUAL_DICE_ROLLS is {MANUAL_DICE_ROLLS}")
+print(f"ALLOW_ATTACK_ALLIES is {ALLOW_ATTACK_ALLIES}")
+print("Enter 0 to skip manual dice rolls if needed\n")
 
 def poll_team(team):
     team_left = False
@@ -54,9 +53,9 @@ def poll_team(team):
             break
     return team_left
 
-with open("configs/pc_sample.yaml", "r") as f:
-    config = yaml.load(f, Loader=yaml.SafeLoader)
-urvarg = Character(config, settings)
+#with open("configs/pc_sample.yaml", "r") as f:
+#    config = yaml.load(f, Loader=yaml.SafeLoader)
+#urvarg = Character(config, settings)
 
 with open("configs/pc_sample_2.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
@@ -65,22 +64,23 @@ rolf = Character(config, settings)
 with open("configs/pc_sample_scroll.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 urm = Character(config, settings)
-urm2 = Character(config, settings, "urm2")
+#urm2 = Character(config, settings, "urm2")
 
 with open("configs/npc_sample.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
 big_guy = Character(config, settings)
-big_guy2 = Character(config, settings, "Less big")
+#big_guy2 = Character(config, settings, "Less big")
 
 with open("configs/npc_sample_2.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
-little_guy = Character(config, settings)
-little_guy_2 = Character(config, settings, "The Other Little Guy")
-little_guy_3 = Character(config, settings, "YALG")
-little_guy_4 = Character(config, settings, "YALG2")
+#little_guy = Character(config, settings)
+#little_guy_2 = Character(config, settings, "The Other Little Guy")
+#little_guy_3 = Character(config, settings, "YALG")
+#little_guy_4 = Character(config, settings, "YALG2")
 
+pcs = [rolf, urm]
+npcs = [big_guy]
+leader = big_guy
 
-#battle = Battle([rolf, urvarg, urm],[big_guy, little_guy, little_guy_2, little_guy_3, little_guy_4], big_guy, self.settings["manual_dice"])
-#battle = Battle([rolf, urm],[big_guy, little_guy, little_guy_2], settings, big_guy)
-battle = Battle([rolf, urm],[big_guy], settings, big_guy)
+battle = Battle(pcs, npcs, settings, leader)
 battle.run_battle()

@@ -147,7 +147,7 @@ class Scroll(Equipment):
         dr = 12
         logging.debug(f"DR is {dr}, roll result is {scroll_roll}, critical is {critical}")
         if critical or scroll_roll >= dr:
-            print(f"Rolling to see how many targets the {self.name} scroll will have")
+            print(f"Success! Rolling to see how many targets the {self.name} scroll will have")
             n_targets = roll_dice(self.n, self.settings["manual_dice"] in ["always", "pc_only"])
             if n_targets < len(targets):
                 print(f"The number of targets rolled for this scroll was less than the maximum. Only the first {n_targets} will be carried out")
@@ -201,7 +201,7 @@ class Weapon(Equipment): #TODO: could weapon use things that are defined in the 
         self.settings = settings
         self.name = config.get("name","Unarmed")
         self.type = config.get("type","melee")
-        self.dice = config.get("damage","1d2")
+        self.dice = config.get("dice","1d2")
         self.dr = config.get("dr",12)
         self.category = config.get("category","unarmed")
         self.rank = config.get("rank",False)

@@ -19,6 +19,7 @@ class Character:
         self.alive = True
         self.is_pc = config["is_pc"]
         self.actions_this_turn = 0 #TODO: RAW are a bit vague on if there is a difference between attacks and actions (which could be using an item), but for now I'm treating them as the same
+        self.damage_taken = 0
         if self.is_pc:
             self.abilities = config["abilities"]
             self.defence = config["abilities"]["agility"] # This can be modified separate to standard agility tests
@@ -160,8 +161,8 @@ class Character:
                 self.most_damage_taken_from = None
                 logging.debug(f"{self.name} has cleared their most_damage_taken_from status")
         if self.last_hit_enemy is not None:
-            if not self.most_damage_taken_from.alive:
-                self.most_damage_taken_from = None
+            if not self.last_hit_enemy.alive:
+                self.last_hit_enemy = None
                 logging.debug(f"{self.name} has cleared their last_hit_enemy status")
         logging.debug(f"{self.name}'s grudges and grievances: enemy_for_life = {self.enemy_for_life}, most_damage_taken_from = {self.most_damage_taken_from}, last_hit_enemy = {self.last_hit_enemy}, enemy_healers = {self.enemy_healers}")
         if self.enemy_for_life is not None:
@@ -188,6 +189,8 @@ class Character:
         actions = self.get_available_actions(allies, enemies)
         print("Option -1:") #TODO: Hide this if playing a "real" game
         print("View current game state\n",)
+        print("Option -2:") #TODO: Hide this if playing a "real" game
+        print("View friends-only view of current state\n",)
 
         for i, action in enumerate(actions):
             i += 1
@@ -207,6 +210,10 @@ class Character:
                 for char in [self] + allies + enemies: #TODO: This should be handled less clumsily. Arguably, shouldn't let people see the enemy stats by default
                     print(char.name)
                     print(char.get_obs())
+            if decision == -2:
+                for char in [self] + allies + enemies: #TODO: This should be handled less clumsily. Arguably, shouldn't let people see the enemy stats by default
+                    print(char.name)
+                    print(char.get_obs("friends"))
 
         return actions[decision - 1]
 
@@ -247,8 +254,10 @@ class Character:
                 obs["max_hp"] = self.max_hp
                 obs["current_hp"] = self.current_hp
                 obs["morale"]: self.morale #TODO: PCs would know this post-morale roll
+                obs["net_damage"]: self.max_hp - self.current_hp # TODO: Review this, maybe too simplistic
         obs["enemy_healers"] = self.enemy_healers
         obs["statuses"] = self.statuses
+        obs["damage_taken"] = self.damage_taken
         return obs
 
     def am_i_dead(self):
@@ -274,18 +283,23 @@ class Character:
         else:
             logging.debug(f"{self.name} rolled a {broken_roll}. This result hasn't been implemented in the code yet.") #TODO
 
-    def apply_damage(self,damage):
-        if (self.armour is not None) and (not self.armour.dice.startswith("0d2")):
-            logging.debug(f"apply_damage: Incoming damage is {damage}. Rolling for armour")
-            armour_reduction = roll_dice(self.armour.dice, self.settings["manual_dice"] in ["always"])
-            logging.debug(f"apply_damage: {self.name} has {self.current_hp} HP before taking damage.")
-            logging.info(f"Reducing damage by {armour_reduction} due to armour")
-            damage -= armour_reduction
+    def apply_damage(self, damage, ignore_armour = False):
+        if not ignore_armour:
+            if (self.armour is not None) and (not self.armour.dice.startswith("0d2")):
+                print(f"Incoming damage is {damage}. Rolling for armour")
+                armour_reduction = roll_dice(self.armour.dice, self.settings["manual_dice"] in ["always"])
+                logging.debug(f"apply_damage: {self.name} has {self.current_hp} HP before taking damage.")
+                print(f"Reducing damage by {armour_reduction} due to armour")
+                damage -= armour_reduction
+            else:
+                print(f"{self.name} has no armour")
         else:
-            print(f"{self.name} has no armour")
+            logging.debug("Armour is not relevant for this attack")
         if damage > 0:
             self.current_hp -= damage
+            self.damage_taken += damage
             print(f"{self.name} took {damage} damage and is on {self.current_hp} HP now") #TODO: Option to hide this second part, players shouldn't know how many HP an enemy has left
+            logging.debug(f"{self.name}'s total damage taken (not taking healing into account) is {self.damage_taken}")
             if self.current_hp == 0:
                 self.roll_broken()
             elif self.current_hp < 0:
@@ -445,11 +459,14 @@ class Character:
         return list
     
     def update_statuses(self):
-        for status in self.statuses.keys():
+        expired_statuses = []
+        for i, status in enumerate(self.statuses.keys()):
             self.statuses[status] -= 1
             if self.statuses[status] == 0:
-                self.statuses.pop(status)
-                logging.debug(f"{status} has been removed from {self.name}")
+                expired_statuses.append(status)
+                logging.debug(f"{status} will be removed from {self.name}")
+        for i, status in enumerate(expired_statuses):
+            self.statuses.pop(status)
     
     def apply_status_effects(self):
         logging.debug(f"Applying status effects to {self.name}: {self.statuses}")
@@ -458,13 +475,14 @@ class Character:
             if status == "suffocating":
                 print("Applying damage from suffocating status")
                 if self.is_pc:
-                    roll = roll_dice("1d4", self.settings["manual_dice"] in ["pc_only", "always"])
+                    damage = roll_dice("1d4", self.settings["manual_dice"] in ["pc_only", "always"])
                 else:
-                    roll = roll_dice("1d4", self.settings["manual_dice"] in ["npc_only", "always"])
-                print(f"{self.name} takes {roll} damage")
-                self.current_hp -= roll
+                    damage = roll_dice("1d4", self.settings["manual_dice"] in ["npc_only", "always"])
+                print(f"{self.name} takes {damage} suffocation damage")
+                ignore_armour = True
+                self.apply_damage(damage, ignore_armour)
                 if self.current_hp <= 0:
-                    print(f"{self.name} has suffocated")
+                    print(f"{self.name} has suffocated. {self.subject} is dead!")
                     self.alive = False
                     return False
                 logging.debug(f"{self.name} has {self.current_hp} HP left after applying suffocating")
@@ -487,7 +505,7 @@ class Character:
         for _ in range(0, self.actions_this_turn):
             logging.debug(f"take_turn: Getting list of available actions for {self.name}")
             targets, weapon_or_item = self.decision_function(allies, enemies)
-            print(f"{self.name} is taking an action: {weapon_or_item} against {', '.join([target.name for target in targets])}")
+            print(f"{self.name} is taking an action: {weapon_or_item.name} against {', '.join([target.name for target in targets])}")
             if isinstance(weapon_or_item, General):
                 print("Using a non-scroll action")
                 self.use_equipment((targets, weapon_or_item))

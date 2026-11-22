@@ -5,6 +5,8 @@ def roll_dice(nd, manual):
     result = 0
     if nd.startswith("d"):
         nd = "1" + nd
+    if nd == "1d1":
+        return 1
     if bool(re.search("^[0-9]*d[0-9]*$", nd)):
         split_nd = nd.split("d")
         n = int(split_nd[0])
