@@ -68,11 +68,19 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
             print("It's a draw")
         elif 0 == len(on_team.chars):
             self.battle_over = True
-            print(f"The other team ({off_team.name}) won. Congrats to the survivor(s): {','.join([char.name for char in off_team.chars])}")
+            if len(off_team.chars) == 1:
+                survivor_survivors = "survivor"
+            else:
+                survivor_survivors = "survivors"
+            print(f"The other team ({off_team.name}) won. Congrats to the {survivor_survivors}: {','.join([char.name for char in off_team.chars])}")
             return off_team, i_team_turns_taken, i_individual_turns_taken
         elif 0 == len(off_team.chars):
             self.battle_over = True
-            print(f"Current round team ({on_team.name}) won. Congrats to the survivor(s): {', '.join([char.name for char in on_team.chars])}")
+            if len(on_team.chars) == 1:
+                survivor_survivors = "survivor"
+            else:
+                survivor_survivors = "survivors"
+            print(f"Current round team ({on_team.name}) won. Congrats to the {survivor_survivors}: {', '.join([char.name for char in on_team.chars])}")
             return on_team, i_team_turns_taken, i_individual_turns_taken
         return None, i_team_turns_taken, i_individual_turns_taken
 
