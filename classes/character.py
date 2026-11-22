@@ -147,6 +147,20 @@ class Character:
     def random_action(self, allies, enemies):
         actions = self.get_available_actions(allies, enemies)
         return choice(actions)
+
+    def sensible_random_action(self, allies, enemies, violent_tendencies = 1): # TODO: Until NPC item use is implemented, this will ensure that NPCs only attack PCs
+        print(f"{self.name} is picking a target at random (almost)")
+        if random() < violent_tendencies:
+            logging.debug(f"{self.name} is choosing an offensive action against {self.possessive} enemies")
+            actions = []
+            for target in enemies:
+                target_weapon = ((target,), self.primary_weapon)
+                actions.append(target_weapon)
+            return choice(actions)
+        else:
+            logging.debug(f"{self.name} is picking an action at random (for real this time)")
+            return self.random_action(allies, enemies) #TODO: This random choice allows for attacking allies and healing enemies, fix that
+
     
     def rules_based_action(self, allies, enemies): # TODO: Make a hard mode version of this that knows more about enemy states
         logging.debug(f"{self.name} is making a rules-based decision on what to do next")
@@ -170,20 +184,22 @@ class Character:
             print(f"{self.name} is attacking {self.possessive} enemy for life {self.enemy_for_life.name}")
             return ((self.enemy_for_life,), self.primary_weapon)
         elif self.most_damage_taken_from is not None:
-            print(f"{self.name} is attacking the enemy who has done the most damage to {self.third}: {self.most_damage_taken_from.name}")
-            return ((self.most_damage_taken_from,), self.primary_weapon)
+            if random() < 0.7:
+                print(f"{self.name} is attacking the enemy who has done the most damage to {self.third}: {self.most_damage_taken_from.name}")
+                return ((self.most_damage_taken_from,), self.primary_weapon)
+            else:
+                print(f"{self.name} could attack the enemy who has done the most damage to {self.third}: {self.most_damage_taken_from.name} but has decided not to")
         elif self.last_hit_enemy is not None:
             if random() < 0.7:
                 print(f"{self.name} is attacking the enemy they last hit: {self.last_hit_enemy.name}")
                 return ((self.last_hit_enemy,), self.primary_weapon)
             else:
                 print(f"{self.name} could attack the enemy they last hit: {self.last_hit_enemy.name} but has decided not to")
-                action = self.random_action(allies, enemies)
-                return action
-        else:
-            print(f"{self.name} is picking a target at random")
-            action = self.random_action(allies, enemies)
-            return action
+
+        # Note to self: This can't be an else block because then we won't hit it if one of the elifs is true but the < 0.7 threshold isn't met
+        logging.debug(f"{self.name} reached the end of {self.possessive} decision tree without making a decision")
+        action = self.sensible_random_action(allies, enemies)
+        return action
 
     def manual_action(self, allies, enemies):
         print("\n\nHere are the available options\n")
@@ -401,7 +417,10 @@ class Character:
             logging.debug(f"npc_attack_with_weapon: Damage roll is {damage}, multiplier is {multiplier}")
             target_alive = target.apply_damage(multiplier * damage)
             if target_alive and damage > 2: #TODO damage of 1 would get absorbed by armour, as would 2 probably
-                self.last_hit_enemy = target
+                logging.debug(f"{self.name}'s target of {target.name} is still alive")
+                if target.is_pc:
+                    logging.debug(f"{self.name}'s target of {target.name} was a PC, setting as last hit enemy")
+                    self.last_hit_enemy = target
             if fumble and target_alive is True:
                 print(f"{target.name}'s armour is damaged")
                 target.armour.reduce_tier(target, 1)

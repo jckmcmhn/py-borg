@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--manual_dice", help = "One of 'never', 'pc_only', 'npc_only', 'always' and 'pc_decisions'", default="never")
 parser.add_argument("-l", "--log", help = "Log level, one of 'debug', 'info', 'warning'. Select 'warning' for the fewest messages overall", default="info")
 parser.add_argument("-a", "--allow_attack_allies", default="false")
+parser.add_argument("-p", "--pauses", default="false", help = "Pause and wait for user to press continue after every event of significance")
 args = parser.parse_args()
 
 
@@ -28,6 +29,7 @@ logging.basicConfig(
 
 MANUAL_DICE_ROLLS = args.manual_dice
 ALLOW_ATTACK_ALLIES = args.allow_attack_allies.lower() == "true" #TODO: Eventually need a setting where it's allowed but the game crashes or makes more of a fuss if it happens
+PAUSES = args.pauses.lower() == "true"
 
 
 settings = {
@@ -36,7 +38,7 @@ settings = {
     "mod_damage": 0,
     "to_hit": 0,
     "to_dodge": 0,
-    "pauses": False # TODO: make this configurable
+    "pauses": PAUSES
 }
 
 print("Starting the game")
@@ -44,14 +46,6 @@ print(f"MANUAL_DICE_ROLLS is {MANUAL_DICE_ROLLS}")
 print(f"ALLOW_ATTACK_ALLIES is {ALLOW_ATTACK_ALLIES}")
 print("Enter 0 to skip manual dice rolls if needed\n")
 
-def poll_team(team):
-    team_left = False
-    for char in team.chars:
-        if char.alive:
-            team_left = True
-            print(f"There's someone {char.name} left on {team.name}")
-            break
-    return team_left
 
 #with open("configs/pc_sample.yaml", "r") as f:
 #    config = yaml.load(f, Loader=yaml.SafeLoader)
@@ -73,13 +67,13 @@ big_guy = Character(config, settings)
 
 with open("configs/npc_sample_2.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.SafeLoader)
-#little_guy = Character(config, settings)
-#little_guy_2 = Character(config, settings, "The Other Little Guy")
+little_guy = Character(config, settings)
+little_guy_2 = Character(config, settings, "The Other Little Guy")
 #little_guy_3 = Character(config, settings, "YALG")
 #little_guy_4 = Character(config, settings, "YALG2")
 
 pcs = [rolf, urm]
-npcs = [big_guy]
+npcs = [big_guy, little_guy, little_guy_2]
 leader = big_guy
 
 battle = Battle(pcs, npcs, settings, leader)
