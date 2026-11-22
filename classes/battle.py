@@ -41,7 +41,6 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
 
     def run_round_side(self, on_team, off_team):
         print(f"The team of {', '.join([ char.name for char in on_team.chars])} is taking their go")
-        i_team_turns_taken = 0
         i_individual_turns_taken = 0
         for char in on_team.chars:
             allies = [x for x in on_team.chars if x != char and x.alive is True]
@@ -63,43 +62,66 @@ class Battle: # Is this one class too many? Probably, but I've got class fever o
                     logging.debug(f"{off_team.name} have witnessed {char.name} from {on_team.name} attempt healing")
                     off_team.update_enemy_healers_for_team(char)
                     
-        i_team_turns_taken += 1
         if 0 == on_team.update_team() and 0 == off_team.update_team():
             print("It's a draw")
         elif 0 == len(on_team.chars):
             self.battle_over = True
-            print(f"The other team ({off_team.name}) won. Congrats to the survivor(s): {','.join([char.name for char in off_team.chars])}")
-            return off_team, i_team_turns_taken, i_individual_turns_taken
+            if len(off_team.chars) == 1:
+                survivor_survivors = "survivor"
+            else:
+                survivor_survivors = "survivors"
+            print(f"\nThe other team ({off_team.name}) won. Congrats to the {survivor_survivors}: {', '.join([char.name for char in off_team.chars])}!\n")
+            return off_team, i_individual_turns_taken
         elif 0 == len(off_team.chars):
             self.battle_over = True
-            print(f"Current round team ({on_team.name}) won. Congrats to the survivor(s): {', '.join([char.name for char in on_team.chars])}")
-            return on_team, i_team_turns_taken, i_individual_turns_taken
-        return None, i_team_turns_taken, i_individual_turns_taken
+            if len(on_team.chars) == 1:
+                survivor_survivors = "survivor"
+            else:
+                survivor_survivors = "survivors"
+            print(f"\nCurrent turn team ({on_team.name}) won. Congrats to the {survivor_survivors}: {', '.join([char.name for char in on_team.chars])}!\n")
+            return on_team, i_individual_turns_taken
+        return None, i_individual_turns_taken
 
     def run_battle(self):
-        rounds = 0
-        team_turns_taken = 0
+        complete_rounds = 0
         individual_turns_taken = 0
+        second_team_individual_turns_taken = 0 # Set default values in the unlikely event that the first team wins on their first turn
         while self.battle_over is False:
-            #TODO: This whole team term block could be a function
-            winner, i_team_turns_taken, i_individual_turns_taken = self.run_round_side(self.first_team, self.second_team)
+            print(f"Starting round {complete_rounds + 1}")
+            winner, first_team_individual_turns_taken = self.run_round_side(self.first_team, self.second_team)
             #self.first_team.team_status()
-            if self.battle_over is False:
-                winner, i_team_turns_taken, i_individual_turns_taken = self.run_round_side(self.second_team, self.first_team)
+            if self.battle_over is False: # Only do the second teams turn of the round if the first team didn't win on their turn
+                winner, second_team_individual_turns_taken = self.run_round_side(self.second_team, self.first_team)
                 #self.second_team.team_status()
-            team_turns_taken += i_team_turns_taken
-            individual_turns_taken += i_individual_turns_taken
-            rounds += 1
-            print(f"End of round {rounds}")
-        if rounds == 1:
+            individual_turns_taken += first_team_individual_turns_taken + second_team_individual_turns_taken
+            complete_rounds += 1
+            if self.battle_over is False:
+                print(f"End of round {complete_rounds}")
+                print("------------------------------")
+
+        if winner is not None:
+            logging.debug(f"Clearing statuses from winning team ({winner.name})")
+            for char in winner.chars:
+                if char.statuses != {}: #TODO: Outside of debugging, this check is probably not needed
+                    #TODO: Should all statuses be cleared automatically, check the rules
+                    logging.debug(f"{char.name} had these statuses which will be cleared: {char.statuses}")
+                    char.statuses = {}
+        if complete_rounds == 1:
             round_string = "round"
             were_was = "was"
         else:
             round_string = "rounds"
             were_was = "were"
         if individual_turns_taken == 1:
-            individual_turns_string = "individual turn"
+            individual_turns_string = "turn"
         else:
-            individual_turns_string = "individual turns"
-        print(f"There {were_was} {rounds} {round_string} and {individual_turns_taken} {individual_turns_string}")
+            individual_turns_string = "turns"
+        print(f"There {were_was} {complete_rounds} complete {round_string} and {individual_turns_taken} individual character {individual_turns_string}\n")
+        #print(f"Final state summary: {winner.chars[0].get_obs('admin')}") # Get the first survivor, get their admin level obs
+
+        if winner is not None:
+            logging.debug("Final state summary")
+            for char in winner.chars:
+                logging.debug(char.name)
+                logging.debug(f"Final state summary: {char.get_obs('friends')}") # Get the first survivor, get their admin level obs
 
