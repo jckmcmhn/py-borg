@@ -30,6 +30,7 @@ class Character:
             if len(self.scrolls): #TODO: What if a character gets a scroll in future. Problem for another time
                 print("Getting powers for today")
                 self.powers = roll_dice("1d4", self.settings["manual_dice"] in ["pc_only", "always"]) + self.abilities["presence"]
+                logging.debug(f"{self.name}'s starting power count is {self.powers}")
             else:
                 self.powers = 0
             self.set_general_equipment(self.items)
@@ -204,7 +205,7 @@ class Character:
             else:
                 print(f"Use {tool.name} on {targets[0].name}\n")
         decision = -1
-        while decision == -1:
+        while decision in [-1, -2]:
             decision = int(input("\nWhich option? Just type the number: "))
             if decision == -1:
                 for char in [self] + allies + enemies: #TODO: This should be handled less clumsily. Arguably, shouldn't let people see the enemy stats by default
@@ -441,7 +442,9 @@ class Character:
                 target_weapon = ((target,), weapon)
                 weapon_actions.append(target_weapon)
         if self.is_pc is True:
-            if self.powers > 1 and (self.scrolls is not None):
+            if len(self.scrolls) > 0 and self.powers == 0:
+                logging.warning(f"{self.name} has scrolls, but no 'powers' left to make use of them")
+            if self.powers > 0 and (self.scrolls is not None):
                 for scroll in self.scrolls:
                     targets, _ = scroll.list_actions(allies, enemies, self)
                     for target in targets:
@@ -482,8 +485,9 @@ class Character:
                 ignore_armour = True
                 self.apply_damage(damage, ignore_armour)
                 if self.current_hp <= 0:
-                    print(f"{self.name} has suffocated. {self.subject} is dead!")
+                    print(f"{self.name} has suffocated. {self.subject.title()} is dead!")
                     self.alive = False
+                    print("------------------------------")
                     return False
                 logging.debug(f"{self.name} has {self.current_hp} HP left after applying suffocating")
         return self.alive

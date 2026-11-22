@@ -58,7 +58,7 @@ class Equipment:
         target.apply_healing(healing)
 
     def do_damage(self, target, multiplier):
-        print(f"Roll for {self.name} damage")
+        print(f"Roll for {self.name} damage against {target.name}")
         damage = roll_dice(self.dice, self.settings["manual_dice"] in ["always", "pc_only"])
         damage += self.settings["mod_damage"]
         damage = multiplier * damage
@@ -121,7 +121,9 @@ class Scroll(Equipment):
     def use(self, user, targets):
         if "dizzy" in user.statuses:
             logging.warning("Shouldn't try and use a scroll when dizzy")
-            user.apply_damage(4 + self.settings["mod_damage"]) #TODO: This shouldn't be as hardcoded
+            damage = 4 + self.settings["mod_damage"] #TODO: This shouldn't be as hardcoded
+            print(f"Applying {damage} points of self-inflicted dizzy damage to {user.name}")
+            user.apply_damage(damage) #TODO: This shouldn't be as hardcoded
             return False
         if user.primary_weapon.name.lower().startswith("zwei") or (user.armour.tier in [3, 4]):
             logging.warning("Trying to use a scroll while wielding a zweihand weapon or wearing heavy/medium armour guarantees it will fail")
@@ -129,6 +131,7 @@ class Scroll(Equipment):
             damage = roll_dice("1d2", self.settings["manual_dice"] in ["always", "pc_only"])
             user.apply_damage(damage + self.settings["mod_damage"])
             user.statuses["dizzy"] = 601 # The rules state that it should last for "1 hour". 601 is an hour's worth of rounds + 1
+            user.powers -= 1
             return False
         if self.scroll_code == 10 and user.current_hp <=20:
             logging.warning("Casting Death with HP of 20 or less will most likely kill the caster as well")
@@ -165,6 +168,7 @@ class Scroll(Equipment):
             damage = roll_dice("1d2", self.settings["manual_dice"] in ["always", "pc_only"])
             user.apply_damage(damage + self.settings["mod_damage"])
             user.statuses["dizzy"] = 601 # The rules state that it should last for "1 hour". 601 is an hour's worth of rounds + 1. +1 because it will get reduced by one at the end of this character's turn
+            user.powers -= 1
             return False
 
     def __str__(self):
